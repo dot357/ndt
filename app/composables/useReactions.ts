@@ -20,6 +20,10 @@ export function useReactions(proverbId: string | Ref<string>, options: UseReacti
   const loading = ref(false)
   let fetchId = 0
 
+  function getUserId(): string | null {
+    return user.value?.id ?? (user.value as any)?.sub ?? null
+  }
+
   // Derived state — automatically reacts to user auth changes
   const counts = computed<ReactionCount[]>(() => {
     const emojiMap = new Map<string, number>()
@@ -30,7 +34,7 @@ export function useReactions(proverbId: string | Ref<string>, options: UseReacti
   })
 
   const userEmoji = computed(() => {
-    const uid = user.value?.id
+    const uid = getUserId()
     if (!uid) return null
     return rawReactions.value.find(r => r.user_id === uid)?.emoji ?? null
   })
@@ -62,7 +66,8 @@ export function useReactions(proverbId: string | Ref<string>, options: UseReacti
     if (!user.value || loading.value) return
 
     const pid = unref(proverbId)
-    const uid = user.value.id
+    const uid = getUserId()
+    if (!uid) return
     loading.value = true
 
     const isSameEmoji = userEmoji.value === emoji
