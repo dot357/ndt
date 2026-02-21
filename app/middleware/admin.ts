@@ -1,15 +1,15 @@
 export default defineNuxtRouteMiddleware(async () => {
   const user = useSupabaseUser()
 
-  if (!user.value) {
+  // On server, user ID is in `sub` (JWT payload); on client it's `id`
+  const uid = user.value?.id ?? (user.value as any)?.sub
+  if (!uid) {
     return navigateTo('/')
   }
 
-  const { isAdminOrMod, loaded, refresh } = useUserRole()
+  const { isAdminOrMod, refresh } = useUserRole()
 
-  if (!loaded.value) {
-    await refresh()
-  }
+  await refresh()
 
   if (!isAdminOrMod.value) {
     return navigateTo('/')

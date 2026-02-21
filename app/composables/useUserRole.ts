@@ -13,8 +13,13 @@ export function useUserRole() {
   const isAdminOrMod = computed(() => role.value === 'admin' || role.value === 'moderator')
   const isBanned = computed(() => bannedAt.value !== null)
 
+  function getUserId(): string | undefined {
+    return user.value?.id ?? (user.value as any)?.sub
+  }
+
   async function fetchRole() {
-    if (!user.value) {
+    const uid = getUserId()
+    if (!uid) {
       role.value = 'user'
       bannedAt.value = null
       loaded.value = false
@@ -25,27 +30,29 @@ export function useUserRole() {
       const { data, error } = await client
         .from('profiles')
         .select('role, banned_at')
-        .eq('id', user.value.id)
+        .eq('id', uid)
         .single()
 
       if (error) throw error
 
       role.value = (data?.role as Role) || 'user'
       bannedAt.value = data?.banned_at || null
-      loaded.value = true
-    } catch {
+    } catch (e) {
+      console.warn('[useUserRole] Failed to fetch role:', e)
       role.value = 'user'
       bannedAt.value = null
+    } finally {
+      loaded.value = true
     }
   }
 
-  // Fetch on init if user is logged in
-  if (user.value && !loaded.value) {
+  // Fetch on init if user is logged in and role not yet loaded
+  if (getUserId() && !loaded.value) {
     fetchRole()
   }
 
   // Re-fetch when user changes
-  watch(() => user.value?.id, (newId) => {
+  watch(() => getUserId(), (newId) => {
     if (newId) {
       fetchRole()
     } else {

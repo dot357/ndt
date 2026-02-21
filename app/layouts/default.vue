@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const user = useSupabaseUser()
 const client = useSupabaseClient<any>()
+const { isAdminOrMod } = useUserRole()
 
 const navLinks = [
   { label: 'Feed', to: '/', icon: 'i-lucide-flame' },
@@ -34,6 +35,15 @@ provide('showAuthModal', showAuthModal)
         <UColorModeButton />
 
         <template v-if="user">
+          <UButton
+            v-if="isAdminOrMod"
+            to="/manage"
+            icon="i-lucide-shield"
+            label="Manage"
+            variant="soft"
+            color="neutral"
+            size="sm"
+          />
           <UButton
             to="/submit"
             icon="i-lucide-plus"

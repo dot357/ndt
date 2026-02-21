@@ -74,10 +74,23 @@ Add admin/moderator/user roles, ban support, reports table, mod action audit log
   - Regenerated `database.types.ts`
 - **Verified:** Security advisors: same 2 pre-existing WARNs, no new issues
 
-### Step 3: Admin & Moderation Panel
+### Step 3: Admin & Moderation Panel ✅
 Full `/manage` section: dashboard stats, user management (search, ban, role change), moderation queue (approve/reject), reported proverbs.
-- **Status:** Pending
-- **Key changes:** Manage layout, 4 pages, 4 composables, 5+ components
+- **Status:** Complete
+- **DB changes:**
+  - Added `DEFAULT auth.uid()` on `reports.reporter_id` (fix for RLS insert without explicit reporter_id)
+- **Frontend changes:**
+  - Created `app/layouts/manage.vue` — sidebar nav (Dashboard, Users, Moderation, Reports), role badge, back-to-site link
+  - Created `app/composables/useManageStats.ts` — aggregate counts, recent mod actions
+  - Created `app/composables/useManageUsers.ts` — user list, search, ban/unban, role change, all logged to mod_actions
+  - Created `app/composables/useManageModeration.ts` — pending proverbs, approve/reject, bulk operations, all logged
+  - Created `app/composables/useManageReports.ts` — reports with proverb/reporter joins, resolve/dismiss, filter by status
+  - Created `app/pages/manage/index.vue` — dashboard with 6 stat cards + recent mod actions
+  - Created `app/pages/manage/users.vue` — searchable user list with ban/unban, role dropdown (admin only)
+  - Created `app/pages/manage/moderation.vue` — pending proverbs with checkbox select, approve/reject, bulk actions
+  - Created `app/pages/manage/reports.vue` — reports list with proverb preview, resolve/dismiss, status filter tabs
+  - Updated `app/layouts/default.vue` — added "Manage" button in header for admin/mod users
+- **Verified:** Type check passes, security advisors same 2 pre-existing WARNs
 
 ### Step 4: Enhanced Guess Game
 Track answered questions per user in DB (never repeat), show answer distribution percentages after each guess with visual result bars.
@@ -88,7 +101,7 @@ Track answered questions per user in DB (never repeat), show answer distribution
 
 ## Current Step
 
-**Step 3: Admin & Moderation Panel** — Next to implement.
+**Step 4: Enhanced Guess Game** — Next to implement.
 
 ---
 

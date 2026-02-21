@@ -86,14 +86,14 @@ Build the `/manage` section for admins and moderators. Dashboard with stats, use
 - `app/components/Manage*.vue` — 5 new components
 
 ## Done Criteria
-- [ ] Dashboard shows correct aggregate stats
-- [ ] User list is searchable with activity metrics
-- [ ] Ban/unban works with confirmation and logs to mod_actions
-- [ ] Role change works (admin only)
-- [ ] Moderation queue shows pending proverbs
-- [ ] Approve/reject changes proverb status and logs action
-- [ ] Bulk approve/reject works
-- [ ] Reports list shows open reports with actions
-- [ ] Resolve/dismiss logs to mod_actions
-- [ ] Sidebar navigation works with role-based visibility
-- [ ] Non-admin/mod users cannot access /manage routes
+- [x] Dashboard shows correct aggregate stats
+- [x] User list is searchable with activity metrics
+- [x] Ban/unban works with confirmation and logs to mod_actions
+- [x] Role change works (admin only)
+- [x] Moderation queue shows pending proverbs
+- [x] Approve/reject changes proverb status and logs action
+- [x] Bulk approve/reject works
+- [x] Reports list shows open reports with actions
+- [x] Resolve/dismiss logs to mod_actions
+- [x] Sidebar navigation works with role-based visibility
+- [x] Non-admin/mod users cannot access /manage routes
