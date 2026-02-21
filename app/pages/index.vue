@@ -15,6 +15,7 @@ const { proverbs, loading, hasMore, loadMore } = useProverbs({
 
 <template>
   <div>
+
     <UPageHero
       title="No Direct Translation"
       description="Discover the funniest proverbs from around the world — sayings so unique, they just can't be translated. Vote for your favorites, guess their meanings, and share your own."

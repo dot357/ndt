@@ -18,9 +18,21 @@ const countryOptions = countries.map(c => ({
   value: c.code
 }))
 
+const languageOptions = computed(() =>
+  languages.map(l => ({ label: l, value: l }))
+)
+
 const selectedCountry = computed(() =>
   countries.find(c => c.code === form.country_code)
 )
+
+// Auto-fill language when country changes
+watch(() => form.country_code, (code) => {
+  if (code) {
+    const lang = getCountryLanguage(code)
+    if (lang) form.language_name = lang
+  }
+})
 
 const isValid = computed(() =>
   form.country_code
@@ -61,15 +73,17 @@ async function handleSubmit() {
           v-model="form.country_code"
           :items="countryOptions"
           value-key="value"
-          placeholder="Select a country"
-          searchable
+          placeholder="Search for a country..."
         />
       </UFormField>
 
       <UFormField label="Language" required>
-        <UInput
+        <USelectMenu
           v-model="form.language_name"
-          placeholder="e.g. Turkish, Japanese"
+          :items="languageOptions"
+          value-key="value"
+          placeholder="Search for a language..."
+          create-item
         />
       </UFormField>
     </div>

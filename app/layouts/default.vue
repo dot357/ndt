@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import * as logo from '@/assets/svg/ndt.svg'
 const user = useSupabaseUser()
 const client = useSupabaseClient<any>()
 const { isAdminOrMod } = useUserRole()
@@ -21,13 +20,18 @@ provide('showAuthModal', showAuthModal)
 </script>
 
 <template>
-  <div class="min-h-screen flex flex-col">
-    <UHeader>
+  <div class="min-h-screen flex flex-col ">
+    <UHeader class="overflow-hidden">
       <template #left>
-        <NuxtLink to="/" class="flex items-center gap-2">
-          <!-- <UIcon name="i-lucide-languages" class="text-primary size-6" /> -->
-           <logo />
-          <span class="font-bold text-lg tracking-tight">NDT</span>
+
+        <div class="relative -z-1 opacity-40">
+          <div class="absolute left-12 -top-12">
+            <Logo class="text-primary size-24" />
+          </div>
+        </div>
+        <NuxtLink to="/" class="flex items-center gap-2 py-4">
+
+          <span class="font-bold text-lg tracking-tight">No Direct Translation</span>
         </NuxtLink>
 
         <UNavigationMenu :items="navLinks" class="hidden sm:flex" />
@@ -79,6 +83,7 @@ provide('showAuthModal', showAuthModal)
 
     <UFooter>
       <template #left>
+        <Logo class="text-primary size-6" />
         <p class="text-sm text-muted">
           NDT — No Direct Translation · © {{ new Date().getFullYear() }}
         </p>
