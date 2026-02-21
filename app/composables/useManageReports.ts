@@ -21,6 +21,10 @@ export function useManageReports() {
   const loading = ref(false)
   const filter = ref<'open' | 'resolved' | 'dismissed'>('open')
 
+  function getUserId(): string | null {
+    return user.value?.id ?? (user.value as any)?.sub ?? null
+  }
+
   async function fetchReports() {
     loading.value = true
 
@@ -41,7 +45,8 @@ export function useManageReports() {
   }
 
   async function resolveReport(reportId: string): Promise<boolean> {
-    if (!user.value) return false
+    const uid = getUserId()
+    if (!uid) return false
 
     try {
       // Find the report to get the proverb ID
@@ -57,7 +62,7 @@ export function useManageReports() {
 
       const { error } = await client
         .from('reports')
-        .update({ status: 'resolved', resolved_by: user.value.id })
+        .update({ status: 'resolved', resolved_by: uid })
         .eq('id', reportId)
 
       if (error) throw error
@@ -71,12 +76,13 @@ export function useManageReports() {
   }
 
   async function dismissReport(reportId: string): Promise<boolean> {
-    if (!user.value) return false
+    const uid = getUserId()
+    if (!uid) return false
 
     try {
       const { error } = await client
         .from('reports')
-        .update({ status: 'dismissed', resolved_by: user.value.id })
+        .update({ status: 'dismissed', resolved_by: uid })
         .eq('id', reportId)
 
       if (error) throw error
@@ -90,9 +96,10 @@ export function useManageReports() {
   }
 
   async function logAction(action: string, targetType: string, targetId: string) {
-    if (!user.value) return
+    const uid = getUserId()
+    if (!uid) return
     await client.from('mod_actions').insert({
-      mod_id: user.value.id,
+      mod_id: uid,
       action,
       target_type: targetType,
       target_id: targetId

@@ -6,8 +6,13 @@ export function useReport(proverbId: string | Ref<string>) {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
+  function getUserId(): string | null {
+    return user.value?.id ?? (user.value as any)?.sub ?? null
+  }
+
   async function checkIfReported() {
-    if (!user.value) return
+    const uid = getUserId()
+    if (!uid) return
 
     const pid = unref(proverbId)
     if (!pid) return
@@ -16,7 +21,7 @@ export function useReport(proverbId: string | Ref<string>) {
       const { data, error: fetchError } = await client
         .from('reports')
         .select('id')
-        .eq('reporter_id', user.value.id)
+        .eq('reporter_id', uid)
         .eq('proverb_id', pid)
         .maybeSingle()
 
@@ -28,7 +33,8 @@ export function useReport(proverbId: string | Ref<string>) {
   }
 
   async function submitReport(reason: string): Promise<boolean> {
-    if (!user.value) {
+    const uid = getUserId()
+    if (!uid) {
       error.value = 'You must be signed in to report'
       return false
     }
@@ -43,7 +49,7 @@ export function useReport(proverbId: string | Ref<string>) {
       const { error: insertError } = await client
         .from('reports')
         .insert({
-          reporter_id: user.value.id,
+          reporter_id: uid,
           proverb_id: pid,
           reason
         })
@@ -65,7 +71,7 @@ export function useReport(proverbId: string | Ref<string>) {
     checkIfReported()
   }
 
-  watch(() => user.value?.id, (newId) => {
+  watch(() => getUserId(), (newId) => {
     if (newId) {
       checkIfReported()
     } else {

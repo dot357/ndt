@@ -24,6 +24,10 @@ export function useManageUsers() {
   const loading = ref(false)
   const search = ref('')
 
+  function getUserId(): string | null {
+    return user.value?.id ?? (user.value as any)?.sub ?? null
+  }
+
   async function fetchUsers() {
     loading.value = true
 
@@ -152,9 +156,10 @@ export function useManageUsers() {
   }
 
   async function logAction(action: string, targetType: string, targetId: string, note?: string) {
-    if (!user.value) return
+    const uid = getUserId()
+    if (!uid) return
     await client.from('mod_actions').insert({
-      mod_id: user.value.id,
+      mod_id: uid,
       action,
       target_type: targetType,
       target_id: targetId,

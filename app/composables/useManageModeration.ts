@@ -18,6 +18,10 @@ export function useManageModeration() {
   const loading = ref(false)
   const selected = ref<Set<string>>(new Set())
 
+  function getUserId(): string | null {
+    return user.value?.id ?? (user.value as any)?.sub ?? null
+  }
+
   async function fetchPending() {
     loading.value = true
 
@@ -109,9 +113,10 @@ export function useManageModeration() {
   }
 
   async function logAction(action: string, targetType: string, targetId: string, note?: string) {
-    if (!user.value) return
+    const uid = getUserId()
+    if (!uid) return
     await client.from('mod_actions').insert({
-      mod_id: user.value.id,
+      mod_id: uid,
       action,
       target_type: targetType,
       target_id: targetId,
