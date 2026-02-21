@@ -1,0 +1,49 @@
+interface ProverbDetail {
+  id: string
+  user_id: string
+  country_code: string
+  region: string | null
+  language_name: string
+  original_text: string
+  literal_text: string
+  meaning_text: string
+  vote_count: number
+  created_at: string
+  profiles: { display_name: string | null } | null
+  guess_options: { id: string; option_text: string; is_correct: boolean; sort_order: number }[]
+}
+
+export function useProverb(id: string | Ref<string>) {
+  const client = useSupabaseClient<any>()
+  const proverb = ref<ProverbDetail | null>(null)
+  const loading = ref(false)
+  const error = ref<string | null>(null)
+
+  async function fetch() {
+    const proverbId = unref(id)
+    if (!proverbId) return
+
+    loading.value = true
+    error.value = null
+
+    try {
+      const { data, error: fetchError } = await client
+        .from('proverbs')
+        .select('*, profiles(display_name), guess_options(*)')
+        .eq('id', proverbId)
+        .eq('status', 'published')
+        .single()
+
+      if (fetchError) throw fetchError
+      proverb.value = data as ProverbDetail
+    } catch (e: any) {
+      error.value = e.message || 'Failed to fetch proverb'
+    } finally {
+      loading.value = false
+    }
+  }
+
+  fetch()
+
+  return { proverb, loading, error, refresh: fetch }
+}
