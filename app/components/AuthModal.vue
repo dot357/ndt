@@ -2,7 +2,6 @@
 const open = defineModel<boolean>({ default: false })
 
 const client = useSupabaseClient<any>()
-const config = useRuntimeConfig()
 const email = ref('')
 const loading = ref(false)
 const sent = ref(false)

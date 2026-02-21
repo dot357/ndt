@@ -22,7 +22,7 @@ function handleClick() {
 
 <template>
   <UButton
-    :icon="hasVoted ? 'i-lucide-heart' : 'i-lucide-heart'"
+    icon="i-lucide-heart"
     :color="hasVoted ? 'primary' : 'neutral'"
     :variant="hasVoted ? 'soft' : 'ghost'"
     size="sm"

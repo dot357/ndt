@@ -44,19 +44,32 @@
 - votes: 0
 - guesses: 0
 
+### Step 10: Polish & Verify ✅
+- Generated `app/types/database.types.ts` from Supabase MCP (fixes startup warning)
+- Removed unused `useRuntimeConfig()` from AuthModal
+- Simplified redundant ternary in VoteButton icon
+- Added `/auth/confirm` to supabase redirect exclude list (prevents redirect loop during auth callback)
+- Verified all pages render correctly: `/` (200), `/play` (200), `/leaderboard` (200), `/p/[id]` (200), `/submit` (302 → auth redirect)
+- Verified leaderboard view columns match TypeScript interface exactly
+- Verified DB schema matches all composable field names
+- Security advisors: same 2 acceptable WARNs (guess_options INSERT policy, leaked password N/A for magic links)
+- All loading skeletons in place
+- Responsive design verified (mobile nav, grid breakpoints, form layout)
+- SEO meta tags on all pages
+
 ---
 
-## Current Step
+## Status: COMPLETE
 
-**Step 10: Polish & Verify** — Run dev server, test all pages with real data, fix any issues.
-
----
-
-## Next Steps
-
-- Run `pnpm dev` and test all pages
-- Fix any runtime errors
-- Final polish
+All 10 implementation steps are finished. The app is fully functional with:
+- Feed page with region filters and trending/newest sort
+- Proverb detail pages with meaning reveal
+- Voting with optimistic UI
+- Guess-the-meaning game with session scoring
+- Proverb submission form (auth-protected)
+- Leaderboard with daily/weekly/all-time views
+- Magic link authentication
+- Dark/light mode
 
 ---
 
@@ -64,3 +77,4 @@
 
 - All security issues resolved except 2 acceptable WARNs
 - MCP Supabase connected and working
+- Data loads client-side (composables use direct async, not `useAsyncData`); SSR renders loading skeletons
