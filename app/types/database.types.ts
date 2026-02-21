@@ -7,8 +7,6 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
@@ -208,56 +206,59 @@ export type Database = {
           },
         ]
       }
-      votes: {
+      reactions: {
         Row: {
-          created_at: string
+          created_at: string | null
+          emoji: string
           id: string
           proverb_id: string
           user_id: string
         }
         Insert: {
-          created_at?: string
+          created_at?: string | null
+          emoji: string
           id?: string
           proverb_id: string
           user_id: string
         }
         Update: {
-          created_at?: string
+          created_at?: string | null
+          emoji?: string
           id?: string
           proverb_id?: string
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "votes_proverb_id_fkey"
+            foreignKeyName: "reactions_proverb_id_fkey"
             columns: ["proverb_id"]
             isOneToOne: false
             referencedRelation: "leaderboard_alltime"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "votes_proverb_id_fkey"
+            foreignKeyName: "reactions_proverb_id_fkey"
             columns: ["proverb_id"]
             isOneToOne: false
             referencedRelation: "leaderboard_daily"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "votes_proverb_id_fkey"
+            foreignKeyName: "reactions_proverb_id_fkey"
             columns: ["proverb_id"]
             isOneToOne: false
             referencedRelation: "leaderboard_weekly"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "votes_proverb_id_fkey"
+            foreignKeyName: "reactions_proverb_id_fkey"
             columns: ["proverb_id"]
             isOneToOne: false
             referencedRelation: "proverbs"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "votes_user_id_fkey"
+            foreignKeyName: "reactions_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"

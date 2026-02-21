@@ -80,11 +80,11 @@ watchEffect(() => {
           @click="meaningRevealed = true"
         />
 
-        <!-- Actions -->
-        <div class="flex items-center justify-between pt-4 border-t border-default">
-          <VoteButton :proverb-id="proverb.id" :initial-count="proverb.vote_count" />
+        <!-- Reactions -->
+        <div class="pt-4 border-t border-default space-y-3">
+          <EmojiReactions :proverb-id="proverb.id" />
 
-          <span v-if="proverb.profiles?.display_name" class="text-sm text-muted">
+          <span v-if="proverb.profiles?.display_name" class="text-sm text-muted block">
             Submitted by {{ proverb.profiles.display_name }}
           </span>
         </div>

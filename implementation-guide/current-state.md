@@ -1,4 +1,4 @@
-# NDT — Current State Journal
+# NDT — Current State Journal (Phase 2)
 
 > **This file is the single source of truth for implementation progress.**
 > Update this file after completing each step.
@@ -7,6 +7,7 @@
 
 ## Project: No Direct Translation (NDT)
 **Started:** 2026-02-21
+**Phase 2 Started:** 2026-02-21
 **Stack:** Nuxt 4.3.1 + TypeScript, TailwindCSS v4, Nuxt UI 4.4, Supabase, Iconify
 **Package Manager:** pnpm 10.29.3
 **Node:** v25.6.1
@@ -14,67 +15,73 @@
 
 ---
 
-## Completed Steps
-
-### Step 0: Planning ✅
-- Full implementation plan, 10 step files
-
-### Step 1: Project Foundation ✅
-- Supabase module, amber theme, layout, all pages, auth modal, middleware
-
-### Step 2: Supabase Schema ✅ (DB RESET DONE)
-- Nuked old schema (had `options` instead of `guess_options`, missing `vote_count`, extra `reactions` table)
-- Created fresh: profiles, proverbs, votes, guess_options, guesses
-- RLS policies on all tables
-- Triggers: auto-profile on signup, vote_count sync
-- Leaderboard views (daily/weekly/alltime) with security_invoker
-- Cleaned up 5 leftover old functions
-- Seeded 10 proverbs with 40 guess options
-- Security advisors: only 2 acceptable WARN-level items remaining
-
-### Steps 3-9: All Core Features ✅
-- Composables: useProverbs, useProverb, useVote, useGuess, useSubmitProverb, useLeaderboard
-- Components: ProverbCard, VoteButton, GuessGame, LeaderboardTable, ProverbForm, FeedFilters, CountryBadge, AuthModal
-- Pages: Feed, Proverb detail, Play, Submit, Leaderboard
-
-### DB Verification ✅
-- profiles: 2 (ndt-bot + emrecaneskimez)
-- proverbs: 10
-- guess_options: 40
-- votes: 0
-- guesses: 0
-
-### Step 10: Polish & Verify ✅
-- Generated `app/types/database.types.ts` from Supabase MCP (fixes startup warning)
-- Removed unused `useRuntimeConfig()` from AuthModal
-- Simplified redundant ternary in VoteButton icon
-- Added `/auth/confirm` to supabase redirect exclude list (prevents redirect loop during auth callback)
-- Verified all pages render correctly: `/` (200), `/play` (200), `/leaderboard` (200), `/p/[id]` (200), `/submit` (302 → auth redirect)
-- Verified leaderboard view columns match TypeScript interface exactly
-- Verified DB schema matches all composable field names
-- Security advisors: same 2 acceptable WARNs (guess_options INSERT policy, leaked password N/A for magic links)
-- All loading skeletons in place
-- Responsive design verified (mobile nav, grid breakpoints, form layout)
-- SEO meta tags on all pages
+## Phase 1 (Complete)
+All core features built and verified:
+- Feed, proverb detail, guess game, submit form, leaderboard
+- Auth (magic link), RLS, triggers, views
+- 10 seeded proverbs, 40 guess options
+- DB types generated, all pages working
 
 ---
 
-## Status: COMPLETE
+## Phase 2 Steps
 
-All 10 implementation steps are finished. The app is fully functional with:
-- Feed page with region filters and trending/newest sort
-- Proverb detail pages with meaning reveal
-- Voting with optimistic UI
-- Guess-the-meaning game with session scoring
-- Proverb submission form (auth-protected)
-- Leaderboard with daily/weekly/all-time views
-- Magic link authentication
-- Dark/light mode
+### Step 1: Emoji Reactions System ✅
+Replaced heart voting with Noto emoji reactions.
+- **Status:** Complete
+- **DB changes:**
+  - Dropped `votes` table and `update_vote_count` trigger
+  - Created `reactions` table (user_id, proverb_id, emoji) with unique constraint
+  - RLS: public read, auth insert/delete (own only)
+  - Rate limit trigger: max 3 emojis per user per proverb (`check_reaction_limit`)
+  - New `update_reaction_count` trigger syncs `vote_count` from total reactions
+  - Fixed function search_path security warnings
+- **Frontend changes:**
+  - Installed `@iconify-json/noto` (3710 emoji icons)
+  - Created `app/utils/emojis.ts` — 6 curated emojis (fire, LOL, mind-blown, clap, love, dead)
+  - Created `app/composables/useReactions.ts` — aggregated counts, user tracking, optimistic toggle
+  - Created `app/components/EmojiReactions.vue` — emoji row with counts, auth modal for anon users
+  - Updated `ProverbCard.vue` — replaced VoteButton with EmojiReactions
+  - Updated `p/[id].vue` — replaced VoteButton with EmojiReactions
+  - Deleted `VoteButton.vue` and `useVote.ts`
+  - Regenerated `database.types.ts`
+- **Verified:** All pages 200, zero server errors, leaderboard still works, security back to 2 acceptable WARNs
+
+### Step 2: User Roles & Permissions
+Add admin/moderator/user roles, ban support, reports table, mod action audit log. Change proverb default status to 'pending'.
+- **Status:** Pending
+- **Key changes:** `role` + `banned_at` on profiles, `reports` table, `mod_actions` table, `useUserRole` composable, admin middleware
+
+### Step 3: Admin & Moderation Panel
+Full `/manage` section: dashboard stats, user management (search, ban, role change), moderation queue (approve/reject), reported proverbs.
+- **Status:** Pending
+- **Key changes:** Manage layout, 4 pages, 4 composables, 5+ components
+
+### Step 4: Enhanced Guess Game
+Track answered questions per user in DB (never repeat), show answer distribution percentages after each guess with visual result bars.
+- **Status:** Pending
+- **Key changes:** `get_answer_distribution()` DB function, updated GuessGame UI with percentage bars
+
+---
+
+## Current Step
+
+**Step 2: User Roles & Permissions** — Next to implement.
+
+---
+
+## Current DB Schema
+- `profiles` (id, display_name, avatar_url, created_at)
+- `proverbs` (id, user_id, country_code, region, language_name, original_text, literal_text, meaning_text, status, vote_count, created_at)
+- `reactions` (id, user_id, proverb_id, emoji, created_at) — unique(user_id, proverb_id, emoji)
+- `guess_options` (id, proverb_id, option_text, is_correct, sort_order)
+- `guesses` (id, user_id, proverb_id, selected_option, is_correct, created_at)
+- Views: leaderboard_daily, leaderboard_weekly, leaderboard_alltime
+- Functions: check_reaction_limit(), update_reaction_count()
 
 ---
 
 ## Blockers / Notes
 
-- All security issues resolved except 2 acceptable WARNs
+- Security advisors: 2 acceptable WARNs (guess_options INSERT, leaked password N/A)
 - MCP Supabase connected and working
-- Data loads client-side (composables use direct async, not `useAsyncData`); SSR renders loading skeletons
