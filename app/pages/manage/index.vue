@@ -94,5 +94,11 @@ function timeAgo(date: string) {
         </div>
       </div>
     </div>
+    <div>
+      <h2 class="text-lg font-semibold mb-4">Latest Proverbs</h2>
+      <UCard>
+        <ManageProverbsTable :show-user="true" :show-moderation-actions="true" />
+      </UCard>
+    </div>
   </div>
 </template>
