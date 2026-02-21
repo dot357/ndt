@@ -19,5 +19,9 @@ export default defineNuxtConfig({
     }
   },
 
+  experimental: {
+    emitRouteChunkError: 'automatic-immediate'
+  },
+
   compatibilityDate: '2025-01-15'
 })
