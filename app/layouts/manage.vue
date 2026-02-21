@@ -37,7 +37,7 @@ const navItems = computed(() => {
       </template>
     </UHeader>
 
-    <div class="flex flex-1">
+    <div class="flex flex-1 max-w-7xl mx-auto w-full">
       <!-- Sidebar -->
       <aside class="w-56 shrink-0 border-r border-default p-4 hidden md:block">
         <nav class="space-y-1">

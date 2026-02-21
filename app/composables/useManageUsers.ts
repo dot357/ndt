@@ -99,16 +99,53 @@ export function useManageUsers() {
     }
   }
 
-  async function fetchUserProverbs(userId: string): Promise<UserProverb[]> {
+  async function fetchUserProverbs(
+    userId: string,
+    opts: { page?: number; limit?: number; language?: string } = {}
+  ): Promise<{ data: UserProverb[]; total: number }> {
+    const page = opts.page ?? 0
+    const limit = opts.limit ?? 10
+    const from = page * limit
+    const to = from + limit - 1
+
     try {
-      const { data, error } = await client
+      let query = client
         .from('proverbs')
-        .select('id, original_text, country_code, language_name, status, vote_count, created_at')
+        .select('id, original_text, country_code, language_name, status, vote_count, created_at', { count: 'exact' })
         .eq('user_id', userId)
         .order('created_at', { ascending: false })
 
+      if (opts.language) {
+        query = query.eq('language_name', opts.language)
+      }
+
+      query = query.range(from, to)
+
+      const { data, error, count } = await query
       if (error) throw error
-      return (data || []) as UserProverb[]
+      return { data: (data || []) as UserProverb[], total: count ?? 0 }
+    } catch {
+      return { data: [], total: 0 }
+    }
+  }
+
+  async function fetchUserLanguages(userId: string): Promise<{ language: string; count: number }[]> {
+    try {
+      const { data, error } = await client
+        .from('proverbs')
+        .select('language_name')
+        .eq('user_id', userId)
+
+      if (error) throw error
+
+      const counts = new Map<string, number>()
+      for (const row of data || []) {
+        const lang = row.language_name
+        counts.set(lang, (counts.get(lang) || 0) + 1)
+      }
+      return Array.from(counts.entries())
+        .map(([language, count]) => ({ language, count }))
+        .sort((a, b) => b.count - a.count)
     } catch {
       return []
     }
@@ -135,6 +172,7 @@ export function useManageUsers() {
     banUser,
     unbanUser,
     changeRole,
-    fetchUserProverbs
+    fetchUserProverbs,
+    fetchUserLanguages
   }
 }

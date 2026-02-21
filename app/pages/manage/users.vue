@@ -4,29 +4,18 @@ definePageMeta({ layout: 'manage', middleware: 'admin' })
 useSeoMeta({ title: 'Users — NDT Admin' })
 
 const { isAdmin } = useUserRole()
-const { users, loading, search, fetchUsers, banUser, unbanUser, changeRole, fetchUserProverbs } = useManageUsers()
+const { users, loading, search, fetchUsers, banUser, unbanUser, changeRole } = useManageUsers()
 
 const actionLoading = ref<string | null>(null)
 const expandedUser = ref<string | null>(null)
-const userProverbs = ref<any[]>([])
-const proverbsLoading = ref(false)
 
 // Redirect non-admins
 if (!isAdmin.value) {
   navigateTo('/manage')
 }
 
-async function toggleContributions(userId: string) {
-  if (expandedUser.value === userId) {
-    expandedUser.value = null
-    userProverbs.value = []
-    return
-  }
-
-  expandedUser.value = userId
-  proverbsLoading.value = true
-  userProverbs.value = await fetchUserProverbs(userId)
-  proverbsLoading.value = false
+function toggleContributions(userId: string) {
+  expandedUser.value = expandedUser.value === userId ? null : userId
 }
 
 async function handleBan(userId: string) {
@@ -53,14 +42,6 @@ function debouncedSearch() {
 
 function formatDate(date: string) {
   return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-}
-
-const statusColor: Record<string, string> = {
-  published: 'text-success',
-  pending: 'text-warning',
-  rejected: 'text-error',
-  flagged: 'text-error',
-  draft: 'text-muted'
 }
 </script>
 
@@ -157,52 +138,9 @@ const statusColor: Record<string, string> = {
             </div>
           </div>
 
-          <!-- Expanded contributions -->
-          <div v-if="expandedUser === u.id" class="border-t border-default pt-3">
-            <div v-if="proverbsLoading" class="space-y-2 py-2">
-              <USkeleton class="h-8 w-full" />
-              <USkeleton class="h-8 w-full" />
-            </div>
+          <!-- Expanded contributions (isolated component) -->
 
-            <div v-else-if="userProverbs.length === 0" class="text-sm text-muted py-2">
-              No proverbs submitted.
-            </div>
-
-            <div v-else class="overflow-x-auto">
-              <table class="w-full text-sm">
-                <thead>
-                  <tr class="text-left text-xs text-muted uppercase tracking-wide border-b border-default">
-                    <th class="pb-2 pr-3 font-medium">ID</th>
-                    <th class="pb-2 pr-3 font-medium">Proverb</th>
-                    <th class="pb-2 pr-3 font-medium">Language</th>
-                    <th class="pb-2 pr-3 font-medium">Status</th>
-                    <th class="pb-2 pr-3 font-medium">Reactions</th>
-                    <th class="pb-2 font-medium">Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="p in userProverbs" :key="p.id" class="border-b border-default last:border-0">
-                    <td class="py-2 pr-3">
-                      <NuxtLink :to="`/p/${p.id}`" class="text-primary hover:underline font-mono text-xs">
-                        {{ p.id.slice(0, 8) }}...
-                      </NuxtLink>
-                    </td>
-                    <td class="py-2 pr-3 max-w-xs truncate">"{{ p.original_text }}"</td>
-                    <td class="py-2 pr-3">
-                      <CountryBadge :country-code="p.country_code" :language-name="p.language_name" />
-                    </td>
-                    <td class="py-2 pr-3">
-                      <span class="font-medium text-xs" :class="statusColor[p.status] || 'text-muted'">
-                        {{ p.status }}
-                      </span>
-                    </td>
-                    <td class="py-2 pr-3 tabular-nums">{{ p.vote_count }}</td>
-                    <td class="py-2 text-xs text-dimmed whitespace-nowrap">{{ formatDate(p.created_at) }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <UserContributions v-if="expandedUser === u.id" :user-id="u.id" />
         </div>
       </UCard>
     </div>
