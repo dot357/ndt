@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import * as logo from '@/assets/svg/ndt.svg'
 const user = useSupabaseUser()
 const client = useSupabaseClient<any>()
 const { isAdminOrMod } = useUserRole()
@@ -24,7 +25,8 @@ provide('showAuthModal', showAuthModal)
     <UHeader>
       <template #left>
         <NuxtLink to="/" class="flex items-center gap-2">
-          <UIcon name="i-lucide-languages" class="text-primary size-6" />
+          <!-- <UIcon name="i-lucide-languages" class="text-primary size-6" /> -->
+           <logo />
           <span class="font-bold text-lg tracking-tight">NDT</span>
         </NuxtLink>
 

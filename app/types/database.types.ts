@@ -226,7 +226,7 @@ export type Database = {
           original_text: string
           region?: string | null
           status?: string
-          user_id: string
+          user_id?: string
           vote_count?: number
         }
         Update: {
@@ -327,7 +327,7 @@ export type Database = {
           id?: string
           proverb_id: string
           reason: string
-          reporter_id: string
+          reporter_id?: string
           resolved_by?: string | null
           status?: string
         }
@@ -428,6 +428,16 @@ export type Database = {
       }
     }
     Functions: {
+      get_answer_distribution: {
+        Args: { p_proverb_id: string }
+        Returns: {
+          is_correct: boolean
+          option_id: string
+          option_text: string
+          pick_count: number
+          pick_percentage: number
+        }[]
+      }
       is_admin_or_mod: { Args: never; Returns: boolean }
       is_banned: { Args: never; Returns: boolean }
     }

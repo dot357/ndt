@@ -8,11 +8,15 @@ interface ReactionCount {
   count: number
 }
 
-export function useReactions(proverbId: string | Ref<string>) {
+interface UseReactionsOptions {
+  initialReactions?: RawReaction[]
+}
+
+export function useReactions(proverbId: string | Ref<string>, options: UseReactionsOptions = {}) {
   const client = useSupabaseClient<any>()
   const user = useSupabaseUser()
 
-  const rawReactions = ref<RawReaction[]>([])
+  const rawReactions = ref<RawReaction[]>(options.initialReactions ?? [])
   const loading = ref(false)
   let fetchId = 0
 
@@ -106,11 +110,11 @@ export function useReactions(proverbId: string | Ref<string>) {
     return userEmoji.value === emoji
   }
 
-  // Initial fetch (SSR — gets counts even without user)
-  fetchReactions()
-
-  // Re-fetch on client mount to ensure fresh data
-  onMounted(() => fetchReactions())
+  // Only fetch if no initial data was provided
+  if (!options.initialReactions) {
+    fetchReactions()
+    onMounted(() => fetchReactions())
+  }
 
   return {
     counts,

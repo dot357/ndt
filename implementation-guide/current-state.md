@@ -92,16 +92,23 @@ Full `/manage` section: dashboard stats, user management (search, ban, role chan
   - Updated `app/layouts/default.vue` — added "Manage" button in header for admin/mod users
 - **Verified:** Type check passes, security advisors same 2 pre-existing WARNs
 
-### Step 4: Enhanced Guess Game
+### Step 4: Enhanced Guess Game ✅
 Track answered questions per user in DB (never repeat), show answer distribution percentages after each guess with visual result bars.
-- **Status:** Pending
-- **Key changes:** `get_answer_distribution()` DB function, updated GuessGame UI with percentage bars
+- **Status:** Complete
+- **DB changes:**
+  - Created `get_answer_distribution(p_proverb_id)` SQL function (SECURITY DEFINER) — returns option_id, option_text, is_correct, pick_count, pick_percentage
+  - Unique constraint `guesses_user_id_proverb_id_key` already existed
+- **Frontend changes:**
+  - Updated `app/composables/useGuess.ts` — added `distribution` ref, `totalProverbs`/`answeredCount` for progress, `fetchDistribution()` RPC call after guess, anonymous user tracking via localStorage (`ndt_guessed_proverbs` key)
+  - Updated `app/components/GuessGame.vue` — replaced post-answer option buttons with distribution result bars (green for correct, red for user's wrong choice, neutral for others), "YOUR CHOICE" badge, percentage bars with animation, progress indicator ("X remaining"), fallback result badge when distribution unavailable
+  - Updated `app/types/database.types.ts` — added `get_answer_distribution` function type, synced `reporter_id`/`user_id` defaults
+- **Verified:** Type check passes, security advisors same 2 pre-existing WARNs, `get_answer_distribution()` tested and returns correct results
 
 ---
 
 ## Current Step
 
-**Step 4: Enhanced Guess Game** — Next to implement.
+**Step 4 complete.** Ready for Step 5 (if defined).
 
 ---
 
@@ -114,7 +121,7 @@ Track answered questions per user in DB (never repeat), show answer distribution
 - **`reports`** (id, reporter_id, proverb_id, reason, status [open/resolved/dismissed], resolved_by, created_at) — unique(reporter_id, proverb_id)
 - **`mod_actions`** (id, mod_id, action, target_type, target_id, note, created_at)
 - Views: leaderboard_daily, leaderboard_weekly, leaderboard_alltime
-- Functions: check_reaction_limit(), update_reaction_count(), **is_admin_or_mod()**, **is_banned()**
+- Functions: check_reaction_limit(), update_reaction_count(), **is_admin_or_mod()**, **is_banned()**, **get_answer_distribution()**
 
 ---
 

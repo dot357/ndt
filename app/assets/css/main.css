@@ -1,49 +1,57 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 
-@theme static {
-  --font-sans: 'Public Sans', sans-serif;
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('https://fonts.gstatic.com/s/spacegrotesk/v16/V8mDoQDjQSkFtoMM3T6r8E7mPbF4Cw.woff2') format('woff2');
+}
 
-  --color-amber-50: #FFFBEB;
-  --color-amber-100: #FEF3C7;
-  --color-amber-200: #FDE68A;
-  --color-amber-300: #FCD34D;
-  --color-amber-400: #FBBF24;
-  --color-amber-500: #F59E0B;
-  --color-amber-600: #D97706;
-  --color-amber-700: #B45309;
-  --color-amber-800: #92400E;
-  --color-amber-900: #78350F;
-  --color-amber-950: #451A03;
+@theme {
+  --font-sans: 'Space Grotesk', sans-serif;
+
+  --color-cyan-50: #ECFEFE;
+  --color-cyan-100: #D0FBFB;
+  --color-cyan-200: #A7F5F5;
+  --color-cyan-300: #6CEDED;
+  --color-cyan-400: #30E8E8;
+  --color-cyan-500: #14CECE;
+  --color-cyan-600: #10A5A9;
+  --color-cyan-700: #148389;
+  --color-cyan-800: #186A6E;
+  --color-cyan-900: #19575A;
+  --color-cyan-950: #0A3638;
 }
 
 :root {
-  --ui-radius: 0.75rem;
+  --ui-radius: 0.5rem;
   --ui-bg: var(--color-white);
-  --ui-bg-muted: var(--color-gray-50);
-  --ui-bg-elevated: var(--color-gray-100);
-  --ui-bg-accented: var(--color-amber-50);
-  --ui-text: var(--color-gray-900);
-  --ui-text-muted: var(--color-gray-500);
-  --ui-text-dimmed: var(--color-gray-400);
-  --ui-text-highlighted: var(--color-gray-950);
-  --ui-border: var(--color-gray-200);
-  --ui-border-muted: var(--color-gray-100);
-  --ui-border-accented: var(--color-gray-300);
+  --ui-bg-muted: var(--color-slate-50);
+  --ui-bg-elevated: var(--color-slate-100);
+  --ui-bg-accented: var(--color-cyan-50);
+  --ui-text: var(--color-slate-900);
+  --ui-text-muted: var(--color-slate-500);
+  --ui-text-dimmed: var(--color-slate-400);
+  --ui-text-highlighted: var(--color-slate-950);
+  --ui-border: var(--color-slate-200);
+  --ui-border-muted: var(--color-slate-100);
+  --ui-border-accented: var(--color-slate-300);
 }
 
 .dark {
-  --ui-bg: var(--color-gray-950);
-  --ui-bg-muted: var(--color-gray-900);
-  --ui-bg-elevated: var(--color-gray-800);
-  --ui-bg-accented: var(--color-amber-950);
-  --ui-text: var(--color-gray-100);
-  --ui-text-muted: var(--color-gray-400);
-  --ui-text-dimmed: var(--color-gray-600);
+  --ui-bg: var(--color-slate-950);
+  --ui-bg-muted: var(--color-slate-900);
+  --ui-bg-elevated: var(--color-slate-800);
+  --ui-bg-accented: var(--color-cyan-950);
+  --ui-text: var(--color-slate-100);
+  --ui-text-muted: var(--color-slate-400);
+  --ui-text-dimmed: var(--color-slate-600);
   --ui-text-highlighted: var(--color-white);
-  --ui-border: var(--color-gray-800);
-  --ui-border-muted: var(--color-gray-900);
-  --ui-border-accented: var(--color-gray-700);
+  --ui-border: var(--color-slate-800);
+  --ui-border-muted: var(--color-slate-900);
+  --ui-border-accented: var(--color-slate-700);
 }
 
 body {

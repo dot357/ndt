@@ -10,6 +10,7 @@ interface ProverbRow {
   vote_count: number
   created_at: string
   profiles: { display_name: string | null } | null
+  reactions: { emoji: string; user_id: string }[]
 }
 
 interface UseProverbsOptions {
@@ -40,7 +41,7 @@ export function useProverbs(options: UseProverbsOptions = {}) {
     try {
       let query = client
         .from('proverbs')
-        .select('*, profiles(display_name)')
+        .select('*, profiles(display_name), reactions(emoji, user_id)')
         .eq('status', 'published')
 
       const regionVal = options.region?.value

@@ -8,6 +8,7 @@ defineProps<{
     language_name: string
     vote_count: number
     profiles: { display_name: string | null } | null
+    reactions?: { emoji: string; user_id: string }[]
   }
 }>()
 </script>
@@ -28,7 +29,7 @@ defineProps<{
           Literally: "{{ proverb.literal_text }}"
         </p>
 
-        <EmojiReactions :proverb-id="proverb.id" compact />
+        <EmojiReactions :proverb-id="proverb.id" :initial-reactions="proverb.reactions" compact />
 
         <div class="flex items-center justify-between pt-1">
           <span v-if="proverb.profiles?.display_name" class="text-xs text-dimmed">

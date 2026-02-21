@@ -2,11 +2,15 @@
 const props = defineProps<{
   proverbId: string
   compact?: boolean
+  initialReactions?: { emoji: string; user_id: string }[]
 }>()
 
 const user = useSupabaseUser()
 const showAuthModal = inject<Ref<boolean>>('showAuthModal')
-const { totalCount, loading, toggleReaction, getCount, hasReacted } = useReactions(props.proverbId)
+const { totalCount, loading, toggleReaction, getCount, hasReacted } = useReactions(
+  props.proverbId,
+  props.initialReactions ? { initialReactions: props.initialReactions } : {}
+)
 
 function handleClick(emoji: string) {
   if (!user.value) {
