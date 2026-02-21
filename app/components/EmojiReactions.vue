@@ -46,5 +46,6 @@ function handleClick(emoji: string) {
     <span v-if="!compact && totalCount > 0" class="text-xs text-dimmed ml-1">
       {{ totalCount }} reaction{{ totalCount === 1 ? '' : 's' }}
     </span>
+
   </div>
 </template>

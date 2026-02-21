@@ -3,6 +3,10 @@ const route = useRoute()
 const proverbId = route.params.id as string
 
 const { proverb, loading, error } = useProverb(proverbId)
+const user = useSupabaseUser()
+const { isBanned } = useUserRole()
+const { hasReported } = useReport(proverbId)
+const showReportModal = ref(false)
 const meaningRevealed = ref(false)
 
 const timeAgo = computed(() => {
@@ -84,10 +88,27 @@ watchEffect(() => {
         <div class="pt-4 border-t border-default space-y-3">
           <EmojiReactions :proverb-id="proverb.id" />
 
-          <span v-if="proverb.profiles?.display_name" class="text-sm text-muted block">
-            Submitted by {{ proverb.profiles.display_name }}
-          </span>
+          <div class="flex items-center justify-between">
+            <span v-if="proverb.profiles?.display_name" class="text-sm text-muted">
+              Submitted by {{ proverb.profiles.display_name }}
+            </span>
+
+            <UButton
+              v-if="user && !isBanned && !hasReported"
+              label="Report"
+              icon="i-lucide-flag"
+              variant="ghost"
+              color="neutral"
+              size="xs"
+              @click="showReportModal = true"
+            />
+            <span v-else-if="hasReported" class="text-xs text-dimmed">
+              Reported
+            </span>
+          </div>
         </div>
+
+        <ReportModal v-model="showReportModal" :proverb-id="proverb.id" />
       </div>
     </UPageBody>
   </UPage>

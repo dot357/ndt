@@ -35,7 +35,7 @@ export function useSubmitProverb() {
           original_text: data.original_text,
           literal_text: data.literal_text,
           meaning_text: data.meaning_text,
-          status: 'published'
+          status: 'pending'
         })
         .select('id')
         .single()

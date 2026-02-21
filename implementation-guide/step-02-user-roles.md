@@ -91,12 +91,12 @@ create table mod_actions (
 - `app/types/database.types.ts` — regenerate
 
 ## Done Criteria
-- [ ] Role column on profiles with check constraint
-- [ ] banned_at column for ban/unban support
-- [ ] Reports table with RLS
-- [ ] Mod actions audit log table
-- [ ] Proverb default status changed to 'pending'
-- [ ] `useUserRole()` composable works
-- [ ] Admin middleware protects /manage routes
-- [ ] Report button on proverb detail page
-- [ ] Own profile set to admin role
+- [x] Role column on profiles with check constraint
+- [x] banned_at column for ban/unban support
+- [x] Reports table with RLS
+- [x] Mod actions audit log table
+- [x] Proverb default status changed to 'pending'
+- [x] `useUserRole()` composable works
+- [x] Admin middleware protects /manage routes
+- [x] Report button on proverb detail page
+- [x] Own profile set to admin role

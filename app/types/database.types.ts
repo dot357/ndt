@@ -7,6 +7,8 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.1"
   }
@@ -135,24 +137,68 @@ export type Database = {
           },
         ]
       }
+      mod_actions: {
+        Row: {
+          action: string
+          created_at: string | null
+          id: string
+          mod_id: string
+          note: string | null
+          target_id: string
+          target_type: string
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          id?: string
+          mod_id: string
+          note?: string | null
+          target_id: string
+          target_type: string
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          id?: string
+          mod_id?: string
+          note?: string | null
+          target_id?: string
+          target_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mod_actions_mod_id_fkey"
+            columns: ["mod_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
+          banned_at: string | null
           created_at: string
           display_name: string | null
           id: string
+          role: string
         }
         Insert: {
           avatar_url?: string | null
+          banned_at?: string | null
           created_at?: string
           display_name?: string | null
           id: string
+          role?: string
         }
         Update: {
           avatar_url?: string | null
+          banned_at?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
+          role?: string
         }
         Relationships: []
       }
@@ -219,7 +265,7 @@ export type Database = {
           emoji: string
           id?: string
           proverb_id: string
-          user_id: string
+          user_id?: string
         }
         Update: {
           created_at?: string | null
@@ -260,6 +306,79 @@ export type Database = {
           {
             foreignKeyName: "reactions_user_id_fkey"
             columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reports: {
+        Row: {
+          created_at: string | null
+          id: string
+          proverb_id: string
+          reason: string
+          reporter_id: string
+          resolved_by: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          proverb_id: string
+          reason: string
+          reporter_id: string
+          resolved_by?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          proverb_id?: string
+          reason?: string
+          reporter_id?: string
+          resolved_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_proverb_id_fkey"
+            columns: ["proverb_id"]
+            isOneToOne: false
+            referencedRelation: "leaderboard_alltime"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_proverb_id_fkey"
+            columns: ["proverb_id"]
+            isOneToOne: false
+            referencedRelation: "leaderboard_daily"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_proverb_id_fkey"
+            columns: ["proverb_id"]
+            isOneToOne: false
+            referencedRelation: "leaderboard_weekly"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_proverb_id_fkey"
+            columns: ["proverb_id"]
+            isOneToOne: false
+            referencedRelation: "proverbs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_resolved_by_fkey"
+            columns: ["resolved_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -309,7 +428,8 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      is_admin_or_mod: { Args: never; Returns: boolean }
+      is_banned: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
@@ -436,3 +556,9 @@ export type CompositeTypes<
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const

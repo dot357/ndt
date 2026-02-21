@@ -47,10 +47,32 @@ Replaced heart voting with Noto emoji reactions.
   - Regenerated `database.types.ts`
 - **Verified:** All pages 200, zero server errors, leaderboard still works, security back to 2 acceptable WARNs
 
-### Step 2: User Roles & Permissions
+### Step 2: User Roles & Permissions ✅
 Add admin/moderator/user roles, ban support, reports table, mod action audit log. Change proverb default status to 'pending'.
-- **Status:** Pending
-- **Key changes:** `role` + `banned_at` on profiles, `reports` table, `mod_actions` table, `useUserRole` composable, admin middleware
+- **Status:** Complete
+- **DB changes:**
+  - Added `role` column to profiles (user/moderator/admin, default 'user')
+  - Added `banned_at` column to profiles
+  - Created `reports` table (reporter_id, proverb_id, reason, status, resolved_by) with unique per-user-per-proverb
+  - Created `mod_actions` audit log table (mod_id, action, target_type, target_id, note)
+  - Added `pending` and `rejected` to proverb status check constraint
+  - Changed proverb default status from 'published' to 'pending'
+  - Created `is_admin_or_mod()` and `is_banned()` helper functions (SECURITY DEFINER)
+  - Combined ban check into proverbs/reactions INSERT policies (fixed OR vs AND issue)
+  - Added admin/mod SELECT/UPDATE/DELETE policies on proverbs
+  - Added admin/mod profile update policy for role changes
+  - RLS on reports: user insert (own, not banned), user select (own), admin/mod select all, admin/mod update
+  - RLS on mod_actions: admin/mod insert (own), admin/mod select all
+  - Set emrecaneskimez profile to admin role
+- **Frontend changes:**
+  - Created `app/composables/useUserRole.ts` — role, isAdmin, isModerator, isAdminOrMod, isBanned, cached in useState
+  - Created `app/composables/useReport.ts` — submitReport, hasReported check
+  - Created `app/middleware/admin.ts` — protects /manage/* routes
+  - Created `app/components/ReportModal.vue` — modal with reason input
+  - Updated `app/pages/p/[id].vue` — added report button and modal
+  - Updated `app/composables/useSubmitProverb.ts` — changed default status to 'pending'
+  - Regenerated `database.types.ts`
+- **Verified:** Security advisors: same 2 pre-existing WARNs, no new issues
 
 ### Step 3: Admin & Moderation Panel
 Full `/manage` section: dashboard stats, user management (search, ban, role change), moderation queue (approve/reject), reported proverbs.
@@ -66,18 +88,20 @@ Track answered questions per user in DB (never repeat), show answer distribution
 
 ## Current Step
 
-**Step 2: User Roles & Permissions** — Next to implement.
+**Step 3: Admin & Moderation Panel** — Next to implement.
 
 ---
 
 ## Current DB Schema
-- `profiles` (id, display_name, avatar_url, created_at)
-- `proverbs` (id, user_id, country_code, region, language_name, original_text, literal_text, meaning_text, status, vote_count, created_at)
+- `profiles` (id, display_name, avatar_url, **role**, **banned_at**, created_at)
+- `proverbs` (id, user_id, country_code, region, language_name, original_text, literal_text, meaning_text, status [draft/pending/published/flagged/rejected], vote_count, created_at) — default status: 'pending'
 - `reactions` (id, user_id, proverb_id, emoji, created_at) — unique(user_id, proverb_id, emoji)
 - `guess_options` (id, proverb_id, option_text, is_correct, sort_order)
 - `guesses` (id, user_id, proverb_id, selected_option, is_correct, created_at)
+- **`reports`** (id, reporter_id, proverb_id, reason, status [open/resolved/dismissed], resolved_by, created_at) — unique(reporter_id, proverb_id)
+- **`mod_actions`** (id, mod_id, action, target_type, target_id, note, created_at)
 - Views: leaderboard_daily, leaderboard_weekly, leaderboard_alltime
-- Functions: check_reaction_limit(), update_reaction_count()
+- Functions: check_reaction_limit(), update_reaction_count(), **is_admin_or_mod()**, **is_banned()**
 
 ---
 
