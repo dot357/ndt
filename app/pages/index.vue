@@ -4,7 +4,9 @@ useSeoMeta({
   description: 'Discover funny proverbs from around the world that just can\'t be translated.'
 })
 
-const region = ref('All')
+type Region = (typeof regions)[number]
+
+const region = ref<Region>('All')
 const sort = ref<'trending' | 'newest'>('trending')
 
 const { proverbs, loading, hasMore, loadMore } = useProverbs({

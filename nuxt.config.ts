@@ -5,6 +5,13 @@ export default defineNuxtConfig({
     '@nuxtjs/supabase'
   ],
 
+  app: {
+    pageTransition: {
+      name: 'page',
+      mode: 'out-in'
+    }
+  },
+
   devtools: {
     enabled: true
   },
