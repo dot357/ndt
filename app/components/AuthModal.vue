@@ -1,16 +1,18 @@
 <script setup lang="ts">
 const open = defineModel<boolean>({ default: false })
 
+const client = useSupabaseClient<any>()
 const { getToken } = useCaptcha()
 const email = ref('')
-const loading = ref(false)
+const loadingMagicLink = ref(false)
+const loadingGoogle = ref(false)
 const sent = ref(false)
 const error = ref('')
 
 async function sendMagicLink() {
   if (!email.value) return
 
-  loading.value = true
+  loadingMagicLink.value = true
   error.value = ''
 
   try {
@@ -28,7 +30,28 @@ async function sendMagicLink() {
   } catch (err: any) {
     error.value = err?.data?.message || err?.message || 'Failed to send magic link.'
   } finally {
-    loading.value = false
+    loadingMagicLink.value = false
+  }
+}
+
+async function signInWithGoogle() {
+  loadingGoogle.value = true
+  error.value = ''
+
+  try {
+    const redirectTo = import.meta.client ? `${window.location.origin}/auth/confirm` : '/auth/confirm'
+    const { error: authError } = await client.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo }
+    })
+
+    if (authError) {
+      error.value = authError.message
+    }
+  } catch (err: any) {
+    error.value = err?.message || 'Failed to start Google sign-in.'
+  } finally {
+    loadingGoogle.value = false
   }
 }
 
@@ -46,6 +69,22 @@ function close() {
   <UModal v-model:open="open" title="Sign in to NDT" @close="close">
     <template #body>
       <div v-if="!sent" class="space-y-4">
+        <UButton
+          label="Continue with Google"
+          icon="i-simple-icons-google"
+          block
+          variant="soft"
+          :loading="loadingGoogle"
+          @click="signInWithGoogle"
+        />
+
+        <div class="relative py-1">
+          <div class="border-t border-default" />
+          <span class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-default px-2 text-xs text-muted">
+            or
+          </span>
+        </div>
+
         <p class="text-muted text-sm">
           Enter your email to receive a magic sign-in link.
         </p>
@@ -69,7 +108,7 @@ function close() {
           label="Send magic link"
           icon="i-lucide-wand-sparkles"
           block
-          :loading="loading"
+          :loading="loadingMagicLink"
           @click="sendMagicLink"
         />
       </div>

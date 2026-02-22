@@ -19,14 +19,27 @@ const emit = defineEmits<{
 const route = useRoute()
 const open = ref(false)
 
-const drawerItems = computed(() =>
-  props.items.map(item => ({
+const drawerItems = computed(() => {
+  const items = props.items.map(item => ({
     ...item,
     onSelect: () => {
       open.value = false
     }
   }))
-)
+
+  if (props.isAuthenticated && props.isAdminOrMod) {
+    items.push({
+      label: 'Manage',
+      to: '/manage',
+      icon: 'i-lucide-shield',
+      onSelect: () => {
+        open.value = false
+      }
+    })
+  }
+
+  return items
+})
 
 const primaryItems = computed(() => props.items.slice(0, 3))
 
@@ -59,10 +72,10 @@ function handleSignIn() {
 
           <div class="mt-auto border-t border-default pt-4 space-y-2">
             <UButton
-              v-if="isAuthenticated && isAdminOrMod"
-              to="/manage"
-              icon="i-lucide-shield"
-              label="Manage"
+              v-if="isAuthenticated"
+              to="/profile"
+              icon="i-lucide-user-round"
+              label="Profile"
               variant="soft"
               color="neutral"
               block

@@ -12,6 +12,11 @@ const navLinks = [
 const showAuthModal = ref(false)
 const accountMenuItems = computed(() => [[
   {
+    label: 'Profile',
+    icon: 'i-lucide-user-round',
+    onSelect: () => { void navigateTo('/profile') }
+  },
+  {
     label: 'Sign out',
     icon: 'i-lucide-log-out',
     color: 'error',
