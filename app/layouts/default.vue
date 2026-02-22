@@ -35,7 +35,7 @@ provide('showAuthModal', showAuthModal)
 <template>
   <div class="min-h-screen flex flex-col ">
     <div class="hidden sm:block">
-      <UHeader class="overflow-hidden">
+      <UHeader class="overflow-hidden" :toggle="false">
         <template #left>
 
           <div class="relative -z-1 opacity-40">

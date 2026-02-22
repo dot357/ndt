@@ -8,9 +8,30 @@ const loadingMagicLink = ref(false)
 const loadingGoogle = ref(false)
 const sent = ref(false)
 const error = ref('')
+const hasAcceptedLegal = ref(true)
+const wantsMarketingUpdates = ref(false)
+
+const pendingConsentStorageKey = 'ndt:pending_profile_consent'
+
+function persistPendingConsent() {
+  if (!import.meta.client) return
+
+  localStorage.setItem(
+    pendingConsentStorageKey,
+    JSON.stringify({
+      marketing_updates_opt_in: wantsMarketingUpdates.value,
+      terms_accepted_at: new Date().toISOString(),
+      privacy_accepted_at: new Date().toISOString()
+    })
+  )
+}
 
 async function sendMagicLink() {
   if (!email.value) return
+  if (!hasAcceptedLegal.value) {
+    error.value = 'You must agree to the Terms of Service and Privacy Policy to sign in.'
+    return
+  }
 
   loadingMagicLink.value = true
   error.value = ''
@@ -26,6 +47,7 @@ async function sendMagicLink() {
       }
     })
 
+    persistPendingConsent()
     sent.value = true
   } catch (err: any) {
     error.value = err?.data?.message || err?.message || 'Failed to send magic link.'
@@ -35,10 +57,16 @@ async function sendMagicLink() {
 }
 
 async function signInWithGoogle() {
+  if (!hasAcceptedLegal.value) {
+    error.value = 'You must agree to the Terms of Service and Privacy Policy to sign in.'
+    return
+  }
+
   loadingGoogle.value = true
   error.value = ''
 
   try {
+    persistPendingConsent()
     const redirectTo = import.meta.client ? `${window.location.origin}/auth/confirm` : '/auth/confirm'
     const { error: authError } = await client.auth.signInWithOAuth({
       provider: 'google',
@@ -61,6 +89,8 @@ function close() {
     sent.value = false
     email.value = ''
     error.value = ''
+    hasAcceptedLegal.value = false
+    wantsMarketingUpdates.value = false
   }, 300)
 }
 </script>
@@ -97,8 +127,32 @@ function close() {
             icon="i-lucide-mail"
             autofocus
             @keydown.enter="sendMagicLink"
+            class="w-full"
           />
         </UFormField>
+
+        <div class="space-y-3 rounded-lg border border-default p-3">
+          <label class="flex items-start gap-3 text-sm">
+            <UCheckbox v-model="hasAcceptedLegal" />
+            <span class="leading-snug">
+              I agree to the
+              <NuxtLink to="/terms" class="text-primary hover:underline">
+                Terms of Service
+              </NuxtLink>
+              and
+              <NuxtLink to="/privacy" class="text-primary hover:underline">
+                Privacy Policy
+              </NuxtLink>.
+            </span>
+          </label>
+
+          <label class="flex items-start gap-3 text-sm">
+            <UCheckbox v-model="wantsMarketingUpdates" />
+            <span class="leading-snug text-muted">
+              Send me updates about new proverbs and limited merch drops.
+            </span>
+          </label>
+        </div>
 
         <p v-if="error" class="text-sm text-red-500">
           {{ error }}

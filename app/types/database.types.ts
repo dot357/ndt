@@ -182,7 +182,10 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          marketing_updates_opt_in: boolean
+          privacy_accepted_at: string | null
           role: string
+          terms_accepted_at: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -190,7 +193,10 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id: string
+          marketing_updates_opt_in?: boolean
+          privacy_accepted_at?: string | null
           role?: string
+          terms_accepted_at?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -198,7 +204,10 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          marketing_updates_opt_in?: boolean
+          privacy_accepted_at?: string | null
           role?: string
+          terms_accepted_at?: string | null
         }
         Relationships: []
       }

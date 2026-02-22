@@ -8,7 +8,6 @@ const user = useSupabaseUser()
 const showAuthModal = inject<Ref<boolean> | undefined>('showAuthModal', undefined)
 const { isBanned, isAdmin } = useUserRole()
 const { hasReported } = useReport(proverbId)
-const { getToken } = useCaptcha()
 const showReportModal = ref(false)
 const showRemoveModal = ref(false)
 const removing = ref(false)
@@ -263,12 +262,11 @@ async function submitGuess(optionId: string) {
   result.value = isCorrect ? 'correct' : 'wrong'
 
   try {
-    const captchaToken = await getToken('submit_guess')
     const response = await $fetch<{ selected_option: string; is_correct: boolean }>(
       `/api/proverbs/${proverb.value.id}/guess`,
       {
         method: 'POST',
-        body: { optionId, captchaToken }
+        body: { optionId }
       }
     )
     selectedOption.value = response.selected_option

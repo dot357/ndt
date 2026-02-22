@@ -1,11 +1,9 @@
 import { createError, defineEventHandler, getRouterParam, readBody } from 'h3'
 import { serverSupabaseClient } from '#supabase/server'
 import { requireUser } from '../../../utils/auth'
-import { requireCaptcha } from '../../../utils/captcha'
 import { enforceRateLimit } from '../../../utils/rate-limit'
 
 interface ReactionBody {
-  captchaToken?: string
   emoji?: string
 }
 
@@ -24,11 +22,6 @@ export default defineEventHandler(async (event) => {
   })
 
   const body = await readBody<ReactionBody>(event)
-  await requireCaptcha({
-    event,
-    token: body?.captchaToken,
-    action: 'toggle_reaction'
-  })
 
   if (!body?.emoji) {
     throw createError({ statusCode: 400, statusMessage: 'Bad Request', message: 'Emoji is required.' })

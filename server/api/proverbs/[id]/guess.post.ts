@@ -1,10 +1,8 @@
 import { createError, defineEventHandler, getRouterParam, readBody } from 'h3'
 import { serverSupabaseClient, serverSupabaseUser } from '#supabase/server'
-import { requireCaptcha } from '../../../utils/captcha'
 import { enforceRateLimit } from '../../../utils/rate-limit'
 
 interface GuessBody {
-  captchaToken?: string
   optionId?: string
 }
 
@@ -28,11 +26,6 @@ export default defineEventHandler(async (event) => {
   })
 
   const body = await readBody<GuessBody>(event)
-  await requireCaptcha({
-    event,
-    token: body?.captchaToken,
-    action: 'submit_guess'
-  })
 
   if (!body?.optionId) {
     throw createError({ statusCode: 400, statusMessage: 'Bad Request', message: 'Missing option id.' })

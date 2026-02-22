@@ -8,8 +8,11 @@ const client = useSupabaseClient<any>()
 
 const loadingLink = ref(false)
 const loadingUnlink = ref(false)
+const loadingPrefs = ref(false)
+const savingPrefs = ref(false)
 const error = ref('')
 const success = ref('')
+const marketingUpdatesOptIn = ref(false)
 
 const identities = ref<any[]>([])
 const providers = ref<string[]>([])
@@ -27,6 +30,52 @@ async function refreshAuthData() {
   const authUser = data.user as any
   identities.value = (authUser?.identities || []) as any[]
   providers.value = (authUser?.app_metadata?.providers || []) as string[]
+}
+
+async function refreshPreferences() {
+  const uid = user.value?.id || (user.value as any)?.sub
+  if (!uid) return
+
+  loadingPrefs.value = true
+  try {
+    const { data, error: profileError } = await client
+      .from('profiles')
+      .select('marketing_updates_opt_in')
+      .eq('id', uid)
+      .maybeSingle()
+
+    if (profileError) throw profileError
+    marketingUpdatesOptIn.value = !!data?.marketing_updates_opt_in
+  } catch (err: any) {
+    error.value = err?.message || 'Unable to load profile preferences.'
+  } finally {
+    loadingPrefs.value = false
+  }
+}
+
+async function savePreferences() {
+  const uid = user.value?.id || (user.value as any)?.sub
+  if (!uid || savingPrefs.value) return
+
+  savingPrefs.value = true
+  error.value = ''
+  success.value = ''
+
+  try {
+    const { error: updateError } = await client
+      .from('profiles')
+      .update({
+        marketing_updates_opt_in: marketingUpdatesOptIn.value
+      })
+      .eq('id', uid)
+
+    if (updateError) throw updateError
+    success.value = 'Preferences saved.'
+  } catch (err: any) {
+    error.value = err?.message || 'Unable to save preferences.'
+  } finally {
+    savingPrefs.value = false
+  }
 }
 
 async function linkGoogle() {
@@ -95,6 +144,7 @@ watch(
   () => user.value?.id,
   () => {
     void refreshAuthData()
+    void refreshPreferences()
   },
   { immediate: true }
 )
@@ -158,6 +208,34 @@ watch(
             <p v-if="success" class="text-sm text-success">
               {{ success }}
             </p>
+          </div>
+        </UCard>
+
+        <UCard>
+          <template #header>
+            <div>
+              <p class="font-medium">Email updates</p>
+              <p class="text-sm text-muted">
+                You can unsubscribe anytime.
+              </p>
+            </div>
+          </template>
+
+          <div class="space-y-4">
+            <label class="flex items-start gap-3 text-sm">
+              <UCheckbox v-model="marketingUpdatesOptIn" :disabled="loadingPrefs || savingPrefs" />
+              <span class="leading-snug">
+                Send me updates about new proverbs and limited merch drops.
+              </span>
+            </label>
+
+            <UButton
+              label="Save preferences"
+              icon="i-lucide-save"
+              :loading="savingPrefs"
+              :disabled="loadingPrefs"
+              @click="savePreferences"
+            />
           </div>
         </UCard>
       </div>
