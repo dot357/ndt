@@ -23,6 +23,7 @@ export function useManageUsers() {
   const users = ref<ManagedUser[]>([])
   const loading = ref(false)
   const search = ref('')
+  const statusFilter = ref<Array<'active' | 'banned'>>(['active'])
 
   function getUserId(): string | null {
     return user.value?.id ?? (user.value as any)?.sub ?? null
@@ -32,6 +33,11 @@ export function useManageUsers() {
     loading.value = true
 
     try {
+      if (statusFilter.value.length === 0) {
+        users.value = []
+        return
+      }
+
       let query = client
         .from('profiles')
         .select('id, display_name, role, banned_at, created_at')
@@ -39,6 +45,15 @@ export function useManageUsers() {
 
       if (search.value.trim()) {
         query = query.ilike('display_name', `%${search.value.trim()}%`)
+      }
+
+      const includesActive = statusFilter.value.includes('active')
+      const includesBanned = statusFilter.value.includes('banned')
+
+      if (includesActive && !includesBanned) {
+        query = query.is('banned_at', null)
+      } else if (!includesActive && includesBanned) {
+        query = query.not('banned_at', 'is', null)
       }
 
       const { data, error } = await query
@@ -173,6 +188,7 @@ export function useManageUsers() {
     users,
     loading,
     search,
+    statusFilter,
     fetchUsers,
     banUser,
     unbanUser,
