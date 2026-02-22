@@ -10,7 +10,6 @@ interface LeaderboardEntry {
 }
 
 export function useLeaderboard(period: Ref<'daily' | 'weekly' | 'alltime'>) {
-  const client = useSupabaseClient<any>()
   const entries = ref<LeaderboardEntry[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
@@ -20,15 +19,12 @@ export function useLeaderboard(period: Ref<'daily' | 'weekly' | 'alltime'>) {
     error.value = null
 
     try {
-      const viewName = `leaderboard_${period.value}`
-      const { data, error: fetchError } = await client
-        .from(viewName)
-        .select('*')
-
-      if (fetchError) throw fetchError
-      entries.value = (data || []) as LeaderboardEntry[]
+      const response = await $fetch<{ entries: LeaderboardEntry[] }>('/api/leaderboard', {
+        query: { period: period.value }
+      })
+      entries.value = response.entries || []
     } catch (e: any) {
-      error.value = e.message || 'Failed to fetch leaderboard'
+      error.value = e?.data?.message || e.message || 'Failed to fetch leaderboard'
     } finally {
       loading.value = false
     }

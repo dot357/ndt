@@ -17,17 +17,10 @@ interface UserProverb {
 }
 
 export function useManageUsers() {
-  const client = useSupabaseClient<any>()
-  const user = useSupabaseUser()
-
   const users = ref<ManagedUser[]>([])
   const loading = ref(false)
   const search = ref('')
   const statusFilter = ref<Array<'active' | 'banned'>>(['active'])
-
-  function getUserId(): string | null {
-    return user.value?.id ?? (user.value as any)?.sub ?? null
-  }
 
   async function fetchUsers() {
     loading.value = true
@@ -38,28 +31,13 @@ export function useManageUsers() {
         return
       }
 
-      let query = client
-        .from('profiles')
-        .select('id, display_name, role, banned_at, created_at')
-        .order('created_at', { ascending: false })
-
-      if (search.value.trim()) {
-        query = query.ilike('display_name', `%${search.value.trim()}%`)
-      }
-
-      const includesActive = statusFilter.value.includes('active')
-      const includesBanned = statusFilter.value.includes('banned')
-
-      if (includesActive && !includesBanned) {
-        query = query.is('banned_at', null)
-      } else if (!includesActive && includesBanned) {
-        query = query.not('banned_at', 'is', null)
-      }
-
-      const { data, error } = await query
-      if (error) throw error
-
-      users.value = (data || []) as ManagedUser[]
+      const response = await $fetch<{ users: ManagedUser[] }>('/api/manage/users', {
+        query: {
+          search: search.value.trim(),
+          status: statusFilter.value.join(',')
+        }
+      })
+      users.value = response.users || []
     } catch {
       // Non-critical
     } finally {
@@ -69,14 +47,7 @@ export function useManageUsers() {
 
   async function banUser(userId: string): Promise<boolean> {
     try {
-      const { error } = await client
-        .from('profiles')
-        .update({ banned_at: new Date().toISOString() })
-        .eq('id', userId)
-
-      if (error) throw error
-
-      await logAction('ban', 'user', userId)
+      await $fetch(`/api/manage/users/${userId}/ban`, { method: 'POST' })
       await fetchUsers()
       return true
     } catch {
@@ -86,14 +57,7 @@ export function useManageUsers() {
 
   async function unbanUser(userId: string): Promise<boolean> {
     try {
-      const { error } = await client
-        .from('profiles')
-        .update({ banned_at: null })
-        .eq('id', userId)
-
-      if (error) throw error
-
-      await logAction('unban', 'user', userId)
+      await $fetch(`/api/manage/users/${userId}/unban`, { method: 'POST' })
       await fetchUsers()
       return true
     } catch {
@@ -103,14 +67,10 @@ export function useManageUsers() {
 
   async function changeRole(userId: string, newRole: string): Promise<boolean> {
     try {
-      const { error } = await client
-        .from('profiles')
-        .update({ role: newRole })
-        .eq('id', userId)
-
-      if (error) throw error
-
-      await logAction('role_change', 'user', userId, `Changed to ${newRole}`)
+      await $fetch(`/api/manage/users/${userId}/role`, {
+        method: 'POST',
+        body: { role: newRole }
+      })
       await fetchUsers()
       return true
     } catch {
@@ -124,25 +84,18 @@ export function useManageUsers() {
   ): Promise<{ data: UserProverb[]; total: number }> {
     const page = opts.page ?? 0
     const limit = opts.limit ?? 10
-    const from = page * limit
-    const to = from + limit - 1
 
     try {
-      let query = client
-        .from('proverbs')
-        .select('id, original_text, country_code, language_name, status, vote_count, created_at', { count: 'exact' })
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
+      const response = await $fetch<{ proverbs: UserProverb[]; total: number }>('/api/manage/proverbs', {
+        query: {
+          userId,
+          page,
+          limit,
+          language: opts.language || 'all'
+        }
+      })
 
-      if (opts.language) {
-        query = query.eq('language_name', opts.language)
-      }
-
-      query = query.range(from, to)
-
-      const { data, error, count } = await query
-      if (error) throw error
-      return { data: (data || []) as UserProverb[], total: count ?? 0 }
+      return { data: response.proverbs || [], total: response.total || 0 }
     } catch {
       return { data: [], total: 0 }
     }
@@ -150,36 +103,13 @@ export function useManageUsers() {
 
   async function fetchUserLanguages(userId: string): Promise<{ language: string; count: number }[]> {
     try {
-      const { data, error } = await client
-        .from('proverbs')
-        .select('language_name')
-        .eq('user_id', userId)
-
-      if (error) throw error
-
-      const counts = new Map<string, number>()
-      for (const row of data || []) {
-        const lang = row.language_name
-        counts.set(lang, (counts.get(lang) || 0) + 1)
-      }
-      return Array.from(counts.entries())
-        .map(([language, count]) => ({ language, count }))
-        .sort((a, b) => b.count - a.count)
+      const response = await $fetch<{ languages: { language: string; count: number }[] }>('/api/manage/proverbs/languages', {
+        query: { userId }
+      })
+      return response.languages || []
     } catch {
       return []
     }
-  }
-
-  async function logAction(action: string, targetType: string, targetId: string, note?: string) {
-    const uid = getUserId()
-    if (!uid) return
-    await client.from('mod_actions').insert({
-      mod_id: uid,
-      action,
-      target_type: targetType,
-      target_id: targetId,
-      note: note || null
-    })
   }
 
   fetchUsers()

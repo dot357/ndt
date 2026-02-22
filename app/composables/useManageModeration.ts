@@ -11,29 +11,16 @@ interface PendingProverb {
 }
 
 export function useManageModeration() {
-  const client = useSupabaseClient<any>()
-  const user = useSupabaseUser()
-
   const proverbs = ref<PendingProverb[]>([])
   const loading = ref(false)
   const selected = ref<Set<string>>(new Set())
-
-  function getUserId(): string | null {
-    return user.value?.id ?? (user.value as any)?.sub ?? null
-  }
 
   async function fetchPending() {
     loading.value = true
 
     try {
-      const { data, error } = await client
-        .from('proverbs')
-        .select('id, original_text, literal_text, meaning_text, country_code, language_name, status, created_at, profiles:user_id(display_name)')
-        .eq('status', 'pending')
-        .order('created_at', { ascending: true })
-
-      if (error) throw error
-      proverbs.value = (data || []) as unknown as PendingProverb[]
+      const response = await $fetch<{ proverbs: PendingProverb[] }>('/api/manage/moderation/pending')
+      proverbs.value = response.proverbs || []
       selected.value = new Set()
     } catch {
       // Non-critical
@@ -44,14 +31,10 @@ export function useManageModeration() {
 
   async function approveProverb(proverbId: string, note?: string): Promise<boolean> {
     try {
-      const { error } = await client
-        .from('proverbs')
-        .update({ status: 'published' })
-        .eq('id', proverbId)
-
-      if (error) throw error
-
-      await logAction('approve', 'proverb', proverbId, note)
+      await $fetch(`/api/manage/moderation/${proverbId}/approve`, {
+        method: 'POST',
+        body: { note: note || null }
+      })
       proverbs.value = proverbs.value.filter(p => p.id !== proverbId)
       selected.value.delete(proverbId)
       return true
@@ -62,14 +45,10 @@ export function useManageModeration() {
 
   async function rejectProverb(proverbId: string, note?: string): Promise<boolean> {
     try {
-      const { error } = await client
-        .from('proverbs')
-        .update({ status: 'rejected' })
-        .eq('id', proverbId)
-
-      if (error) throw error
-
-      await logAction('reject', 'proverb', proverbId, note)
+      await $fetch(`/api/manage/moderation/${proverbId}/reject`, {
+        method: 'POST',
+        body: { note: note || null }
+      })
       proverbs.value = proverbs.value.filter(p => p.id !== proverbId)
       selected.value.delete(proverbId)
       return true
@@ -110,18 +89,6 @@ export function useManageModeration() {
     } else {
       selected.value = new Set(proverbs.value.map(p => p.id))
     }
-  }
-
-  async function logAction(action: string, targetType: string, targetId: string, note?: string) {
-    const uid = getUserId()
-    if (!uid) return
-    await client.from('mod_actions').insert({
-      mod_id: uid,
-      action,
-      target_type: targetType,
-      target_id: targetId,
-      note: note || null
-    })
   }
 
   fetchPending()

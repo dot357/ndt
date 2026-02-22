@@ -20,7 +20,6 @@ interface UseProverbsOptions {
 }
 
 export function useProverbs(options: UseProverbsOptions = {}) {
-  const client = useSupabaseClient<any>()
   const proverbs = ref<ProverbRow[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
@@ -39,29 +38,18 @@ export function useProverbs(options: UseProverbsOptions = {}) {
     error.value = null
 
     try {
-      let query = client
-        .from('proverbs')
-        .select('*, profiles(display_name), reactions(emoji, user_id)')
-        .eq('status', 'published')
-
       const regionVal = options.region?.value
-      if (regionVal && regionVal !== 'All') {
-        query = query.eq('region', regionVal)
-      }
-
       const sortVal = options.sort?.value ?? 'trending'
-      if (sortVal === 'trending') {
-        query = query.order('vote_count', { ascending: false })
-      } else {
-        query = query.order('created_at', { ascending: false })
-      }
+      const response = await $fetch<{ proverbs: ProverbRow[] }>('/api/proverbs/feed', {
+        query: {
+          region: regionVal || 'All',
+          sort: sortVal,
+          page: page.value,
+          limit
+        }
+      })
 
-      query = query.range(page.value * limit, (page.value + 1) * limit - 1)
-
-      const { data, error: fetchError } = await query
-
-      if (fetchError) throw fetchError
-
+      const data = response.proverbs || []
       if (data) {
         if (reset) {
           proverbs.value = data as ProverbRow[]
@@ -72,7 +60,7 @@ export function useProverbs(options: UseProverbsOptions = {}) {
         page.value++
       }
     } catch (e: any) {
-      error.value = e.message || 'Failed to fetch proverbs'
+      error.value = e?.data?.message || e.message || 'Failed to fetch proverbs'
     } finally {
       loading.value = false
     }

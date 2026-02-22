@@ -9,7 +9,6 @@ interface ProverbSubmission {
 }
 
 export function useSubmitProverb() {
-  const client = useSupabaseClient<any>()
   const user = useSupabaseUser()
   const loading = ref(false)
   const error = ref<string | null>(null)
@@ -24,44 +23,13 @@ export function useSubmitProverb() {
     error.value = null
 
     try {
-      // Insert proverb
-      const { data: proverb, error: insertError } = await client
-        .from('proverbs')
-        .insert({
-          user_id: user.value.id,
-          country_code: data.country_code,
-          region: data.region,
-          language_name: data.language_name,
-          original_text: data.original_text,
-          literal_text: data.literal_text,
-          meaning_text: data.meaning_text,
-          status: 'pending'
-        })
-        .select('id')
-        .single()
-
-      if (insertError) throw insertError
-
-      // Insert guess options (1 correct + 3 wrong)
-      const options = [
-        { proverb_id: proverb.id, option_text: data.meaning_text, is_correct: true, sort_order: 0 },
-        ...data.wrong_options.map((text, i) => ({
-          proverb_id: proverb.id,
-          option_text: text,
-          is_correct: false,
-          sort_order: i + 1
-        }))
-      ]
-
-      const { error: optionsError } = await client
-        .from('guess_options')
-        .insert(options)
-
-      if (optionsError) throw optionsError
-
-      return proverb.id as string
+      const response = await $fetch<{ id: string }>('/api/proverbs/submit', {
+        method: 'POST',
+        body: data
+      })
+      return response.id
     } catch (e: any) {
-      error.value = e.message || 'Failed to submit proverb'
+      error.value = e?.data?.message || e.message || 'Failed to submit proverb'
       return null
     } finally {
       loading.value = false

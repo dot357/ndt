@@ -1,5 +1,4 @@
 export function useReport(proverbId: string | Ref<string>) {
-  const client = useSupabaseClient<any>()
   const user = useSupabaseUser()
 
   const hasReported = ref(false)
@@ -18,15 +17,8 @@ export function useReport(proverbId: string | Ref<string>) {
     if (!pid) return
 
     try {
-      const { data, error: fetchError } = await client
-        .from('reports')
-        .select('id')
-        .eq('reporter_id', uid)
-        .eq('proverb_id', pid)
-        .maybeSingle()
-
-      if (fetchError) throw fetchError
-      hasReported.value = !!data
+      const response = await $fetch<{ hasReported: boolean }>(`/api/proverbs/${pid}/report`)
+      hasReported.value = response.hasReported
     } catch {
       // Non-critical
     }
@@ -46,20 +38,15 @@ export function useReport(proverbId: string | Ref<string>) {
     error.value = null
 
     try {
-      const { error: insertError } = await client
-        .from('reports')
-        .insert({
-          reporter_id: uid,
-          proverb_id: pid,
-          reason
-        })
-
-      if (insertError) throw insertError
+      await $fetch(`/api/proverbs/${pid}/report`, {
+        method: 'POST',
+        body: { reason }
+      })
 
       hasReported.value = true
       return true
     } catch (e: any) {
-      error.value = e.message || 'Failed to submit report'
+      error.value = e?.data?.message || e.message || 'Failed to submit report'
       return false
     } finally {
       loading.value = false

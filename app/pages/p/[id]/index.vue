@@ -2,7 +2,6 @@
 const route = useRoute()
 const proverbId = route.params.id as string
 
-const client = useSupabaseClient<any>()
 const toast = useToast()
 const { proverb, loading, error } = useProverb(proverbId)
 const user = useSupabaseUser()
@@ -29,16 +28,7 @@ const distribution = ref<Array<{
 const shuffledOptions = ref<Array<{ id: string; option_text: string; is_correct: boolean }>>([])
 let hammerManager: HammerManager | null = null
 const isAuthenticated = computed(() => !!user.value)
-
-const timeAgo = computed(() => {
-  if (!proverb.value) return ''
-  const diff = Date.now() - new Date(proverb.value.created_at).getTime()
-  const days = Math.floor(diff / 86400000)
-  if (days === 0) return 'today'
-  if (days === 1) return 'yesterday'
-  if (days < 30) return `${days} days ago`
-  return new Date(proverb.value.created_at).toLocaleDateString()
-})
+const currentUserId = computed(() => (user.value as any)?.id || (user.value as any)?.sub || null)
 
 watchEffect(() => {
   if (proverb.value) {
@@ -55,11 +45,6 @@ watchEffect(() => {
     })
   }
 })
-
-async function getSessionUserId(): Promise<string | null> {
-  const { data: { session } } = await client.auth.getSession()
-  return session?.user?.id ?? null
-}
 
 function requireAuth(message: string) {
   if (isAuthenticated.value) return true
@@ -101,39 +86,8 @@ async function goToRandomProverb() {
   navigatingRandom.value = true
 
   try {
-    const userId = user.value?.id
-    let query = client
-      .from('proverbs')
-      .select('id')
-      .eq('status', 'published')
-      .limit(200)
-
-    if (userId) {
-      const { data: guessedRows, error: guessedError } = await client
-        .from('proverbs')
-        .select('id, guesses!inner(user_id)')
-        .eq('status', 'published')
-        .eq('guesses.user_id', userId)
-
-      if (guessedError) throw guessedError
-
-      const guessedIds = new Set((guessedRows || []).map((row: any) => row.id))
-      guessedIds.add(proverb.value.id)
-
-      if (guessedIds.size > 0) {
-        query = query.not('id', 'in', `(${Array.from(guessedIds).join(',')})`)
-      }
-    } else {
-      query = query.neq('id', proverb.value.id)
-    }
-
-    const { data, error: fetchError } = await query
-
-    if (fetchError) throw fetchError
-
-    const ids = (data || []).map((row: { id: string }) => row.id)
-
-    if (ids.length === 0) {
+    const response = await $fetch<{ id: string | null }>(`/api/proverbs/${proverb.value.id}/random-next`)
+    if (!response.id) {
       toast.add({
         title: 'No other proverb found',
         description: 'This is the only published proverb right now.',
@@ -143,8 +97,7 @@ async function goToRandomProverb() {
       return
     }
 
-    const randomId = ids[Math.floor(Math.random() * ids.length)]
-    await navigateTo(`/p/${randomId}`)
+    await navigateTo(`/p/${response.id}`)
   } catch (e: any) {
     toast.add({
       title: 'Could not open next proverb',
@@ -254,10 +207,10 @@ function setupShuffledOptions() {
 async function fetchDistribution() {
   if (!proverb.value) return
   try {
-    const { data } = await client.rpc('get_answer_distribution', {
-      p_proverb_id: proverb.value.id
-    })
-    distribution.value = (data || []) as typeof distribution.value
+    const response = await $fetch<{ distribution: typeof distribution.value }>(
+      `/api/proverbs/${proverb.value.id}/distribution`
+    )
+    distribution.value = response.distribution || []
   } catch {
     // Non-critical
   }
@@ -266,16 +219,19 @@ async function fetchDistribution() {
 async function restoreExistingGuess() {
   if (!proverb.value) return
 
-  const userId = await getSessionUserId()
+  const userId = currentUserId.value
   if (!userId) return
   let previousOptionId: string | null = null
 
-  const { data } = await client
-    .from('guesses')
-    .select('selected_option, is_correct')
-    .eq('proverb_id', proverb.value.id)
-    .eq('user_id', userId)
-    .maybeSingle()
+  let data: { selected_option: string; is_correct: boolean } | null = null
+  try {
+    const response = await $fetch<{ guess: { selected_option: string; is_correct: boolean } | null }>(
+      `/api/proverbs/${proverb.value.id}/guess`
+    )
+    data = response.guess
+  } catch {
+    return
+  }
 
   if (data?.selected_option) {
     previousOptionId = data.selected_option
@@ -292,7 +248,7 @@ async function restoreExistingGuess() {
 async function submitGuess(optionId: string) {
   if (!proverb.value || hasAnswered.value || answering.value) return
 
-  const userId = await getSessionUserId()
+  const userId = currentUserId.value
   if (!userId) {
     requireAuth('Sign in to submit an answer and see your progress.')
     return
@@ -305,30 +261,32 @@ async function submitGuess(optionId: string) {
   const isCorrect = !!picked?.is_correct
   result.value = isCorrect ? 'correct' : 'wrong'
 
-  const { error: insertError } = await client.from('guesses').insert({
-    proverb_id: proverb.value.id,
-    selected_option: optionId,
-    is_correct: isCorrect
-  })
-
-  if (insertError) {
-    console.error('Failed to save guess:', insertError.message)
-    const { data: existing } = await client
-      .from('guesses')
-      .select('selected_option, is_correct')
-      .eq('proverb_id', proverb.value.id)
-      .eq('user_id', userId)
-      .maybeSingle()
-
-    if (existing?.selected_option) {
-      selectedOption.value = existing.selected_option
-      result.value = existing.is_correct ? 'correct' : 'wrong'
-    }
+  try {
+    const response = await $fetch<{ selected_option: string; is_correct: boolean }>(
+      `/api/proverbs/${proverb.value.id}/guess`,
+      {
+        method: 'POST',
+        body: { optionId }
+      }
+    )
+    selectedOption.value = response.selected_option
+    result.value = response.is_correct ? 'correct' : 'wrong'
+    hasAnswered.value = true
+    await fetchDistribution()
+  } catch (e: any) {
+    console.error('Failed to save guess:', e?.data?.message || e?.message)
+    toast.add({
+      title: 'Could not submit answer',
+      description: e?.data?.message || e?.message || 'Please try again.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+    selectedOption.value = null
+    result.value = null
+    return
+  } finally {
+    answering.value = false
   }
-
-  hasAnswered.value = true
-  await fetchDistribution()
-  answering.value = false
 }
 
 watch(() => proverb.value?.id, async () => {
@@ -338,7 +296,7 @@ watch(() => proverb.value?.id, async () => {
   await restoreExistingGuess()
 })
 
-watch(() => user.value?.id, async () => {
+watch(() => currentUserId.value, async () => {
   if (!proverb.value) return
   resetGuessState()
   setupShuffledOptions()
@@ -371,21 +329,9 @@ async function removeProverb() {
   removeError.value = null
 
   try {
-    const { error: updateError } = await client
-      .from('proverbs')
-      .update({ status: 'flagged' })
-      .eq('id', proverb.value.id)
-
-    if (updateError) throw updateError
-
-    if (user.value?.id) {
-      await client.from('mod_actions').insert({
-        mod_id: user.value.id,
-        action: 'remove_proverb',
-        target_type: 'proverb',
-        target_id: proverb.value.id
-      })
-    }
+    await $fetch(`/api/proverbs/${proverb.value.id}/remove`, {
+      method: 'POST'
+    })
 
     showRemoveModal.value = false
     toast.add({
@@ -463,7 +409,6 @@ async function removeProverb() {
 
         <div class="flex items-center justify-center gap-3 flex-wrap">
           <CountryBadge :country-code="proverb.country_code" :language-name="proverb.language_name" />
-          <span class="text-sm text-dimmed">{{ timeAgo }}</span>
         </div>
 
         <h1 class="text-2xl sm:text-4xl font-bold text-highlighted leading-snug text-center break-words">

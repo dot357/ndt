@@ -13,7 +13,6 @@ interface UseReactionsOptions {
 }
 
 export function useReactions(proverbId: string | Ref<string>, options: UseReactionsOptions = {}) {
-  const client = useSupabaseClient<any>()
   const user = useSupabaseUser()
 
   const rawReactions = ref<RawReaction[]>(options.initialReactions ?? [])
@@ -48,15 +47,10 @@ export function useReactions(proverbId: string | Ref<string>, options: UseReacti
     const id = ++fetchId
 
     try {
-      const { data, error } = await client
-        .from('reactions')
-        .select('emoji, user_id')
-        .eq('proverb_id', pid)
-
-      if (error) throw error
+      const response = await $fetch<{ reactions: RawReaction[] }>(`/api/proverbs/${pid}/reactions`)
       if (id !== fetchId) return // discard stale response
 
-      rawReactions.value = data || []
+      rawReactions.value = response.reactions || []
     } catch {
       // Non-critical
     }
@@ -84,22 +78,10 @@ export function useReactions(proverbId: string | Ref<string>, options: UseReacti
     }
 
     try {
-      if (isSameEmoji) {
-        const { error } = await client
-          .from('reactions')
-          .delete()
-          .eq('proverb_id', pid)
-          .eq('user_id', uid)
-        if (error) throw error
-      } else {
-        const { error } = await client
-          .from('reactions')
-          .upsert(
-            { proverb_id: pid, user_id: uid, emoji },
-            { onConflict: 'user_id,proverb_id' }
-          )
-        if (error) throw error
-      }
+      await $fetch(`/api/proverbs/${pid}/reactions`, {
+        method: 'POST',
+        body: { emoji }
+      })
     } catch {
       rawReactions.value = previousRaw
     } finally {

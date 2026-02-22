@@ -4,8 +4,6 @@ definePageMeta({ middleware: 'admin' })
 const route = useRoute()
 const proverbId = route.params.id as string
 
-const client = useSupabaseClient<any>()
-const user = useSupabaseUser()
 const toast = useToast()
 
 const loading = ref(true)
@@ -68,13 +66,8 @@ async function fetchProverb() {
   loadError.value = null
 
   try {
-    const { data, error } = await client
-      .from('proverbs')
-      .select('id, country_code, language_name, original_text, literal_text, meaning_text, status, guess_options(option_text, is_correct, sort_order)')
-      .eq('id', proverbId)
-      .single()
-
-    if (error) throw error
+    const response = await $fetch<{ proverb: any }>(`/api/manage/proverbs/${proverbId}`)
+    const data = response.proverb
 
     form.country_code = data.country_code
     form.language_name = data.language_name
@@ -107,48 +100,19 @@ async function saveChanges() {
   saveError.value = null
 
   try {
-    const { error } = await client
-      .from('proverbs')
-      .update({
+    await $fetch(`/api/manage/proverbs/${proverbId}`, {
+      method: 'PATCH' as any,
+      body: {
         country_code: form.country_code,
         region: selectedCountry.value?.region || null,
         language_name: form.language_name,
         original_text: form.original_text,
         literal_text: form.literal_text,
         meaning_text: form.meaning_text,
-        status: status.value
-      })
-      .eq('id', proverbId)
-
-    if (error) throw error
-
-    const { error: deleteOptionsError } = await client
-      .from('guess_options')
-      .delete()
-      .eq('proverb_id', proverbId)
-
-    if (deleteOptionsError) throw deleteOptionsError
-
-    const { error: insertOptionsError } = await client
-      .from('guess_options')
-      .insert([
-        { proverb_id: proverbId, option_text: form.meaning_text, is_correct: true, sort_order: 0 },
-        { proverb_id: proverbId, option_text: form.wrong_option_1, is_correct: false, sort_order: 1 },
-        { proverb_id: proverbId, option_text: form.wrong_option_2, is_correct: false, sort_order: 2 },
-        { proverb_id: proverbId, option_text: form.wrong_option_3, is_correct: false, sort_order: 3 }
-      ])
-
-    if (insertOptionsError) throw insertOptionsError
-
-    const modId = user.value?.id ?? (user.value as any)?.sub
-    if (modId) {
-      await client.from('mod_actions').insert({
-        mod_id: modId,
-        action: 'edit_proverb',
-        target_type: 'proverb',
-        target_id: proverbId
-      })
-    }
+        status: status.value,
+        wrong_options: [form.wrong_option_1, form.wrong_option_2, form.wrong_option_3]
+      }
+    })
 
     toast.add({
       title: 'Proverb updated',
@@ -157,7 +121,7 @@ async function saveChanges() {
       icon: 'i-lucide-check-circle'
     })
   } catch (e: any) {
-    saveError.value = e?.message || 'Failed to save changes'
+    saveError.value = e?.data?.message || e?.message || 'Failed to save changes'
     toast.add({
       title: 'Update failed',
       description: saveError.value || 'Failed to save changes',

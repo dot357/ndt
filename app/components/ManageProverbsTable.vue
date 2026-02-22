@@ -22,8 +22,6 @@ const props = withDefaults(defineProps<{
   showModerationActions: false
 })
 
-const client = useSupabaseClient<any>()
-const user = useSupabaseUser()
 const toast = useToast()
 
 const proverbs = ref<ProverbRow[]>([])
@@ -67,22 +65,12 @@ function formatDate(date: string) {
 }
 
 async function fetchLanguages() {
-  let query = client.from('proverbs').select('language_name')
-
-  if (props.userId) {
-    query = query.eq('user_id', props.userId)
-  }
-
-  const { data } = await query
-
-  const counts = new Map<string, number>()
-  for (const row of data || []) {
-    counts.set(row.language_name, (counts.get(row.language_name) || 0) + 1)
-  }
-
-  languages.value = Array.from(counts.entries())
-    .map(([language, count]) => ({ language, count }))
-    .sort((a, b) => b.count - a.count)
+  const response = await $fetch<{ languages: { language: string; count: number }[] }>('/api/manage/proverbs/languages', {
+    query: {
+      userId: props.userId
+    }
+  })
+  languages.value = response.languages || []
 }
 
 async function fetchProverbs() {
@@ -91,22 +79,16 @@ async function fetchProverbs() {
   const from = page.value * props.limit
   const to = from + props.limit - 1
 
-  let query = client
-    .from('proverbs')
-    .select('id, original_text, country_code, language_name, status, vote_count, created_at, profiles:user_id(display_name)', { count: 'exact' })
-    .order('created_at', { ascending: false })
-
-  if (props.userId) {
-    query = query.eq('user_id', props.userId)
-  }
-
-  if (languageFilter.value !== 'all') {
-    query = query.eq('language_name', languageFilter.value)
-  }
-
-  const { data, count } = await query.range(from, to)
-  proverbs.value = (data || []) as unknown as ProverbRow[]
-  total.value = count ?? 0
+  const response = await $fetch<{ proverbs: ProverbRow[]; total: number }>('/api/manage/proverbs', {
+    query: {
+      userId: props.userId,
+      page: page.value,
+      limit: props.limit,
+      language: languageFilter.value
+    }
+  })
+  proverbs.value = (response.proverbs || []) as unknown as ProverbRow[]
+  total.value = response.total || 0
   loading.value = false
 }
 
@@ -133,22 +115,9 @@ async function removeProverb() {
   const target = proverbToRemove.value
 
   try {
-    const { error: updateError } = await client
-      .from('proverbs')
-      .update({ status: 'flagged' })
-      .eq('id', target.id)
-
-    if (updateError) throw updateError
-
-    const modId = user.value?.id ?? (user.value as any)?.sub
-    if (modId) {
-      await client.from('mod_actions').insert({
-        mod_id: modId,
-        action: 'remove_proverb',
-        target_type: 'proverb',
-        target_id: target.id
-      })
-    }
+    await $fetch(`/api/proverbs/${target.id}/remove`, {
+      method: 'POST'
+    })
 
     toast.add({
       title: 'Proverb removed',
@@ -164,7 +133,7 @@ async function removeProverb() {
   } catch (e: any) {
     toast.add({
       title: 'Failed to remove proverb',
-      description: e?.message || 'Something went wrong.',
+      description: e?.data?.message || e?.message || 'Something went wrong.',
       color: 'error',
       icon: 'i-lucide-alert-circle'
     })

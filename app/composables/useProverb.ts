@@ -29,7 +29,6 @@ function normalizeGuessOptions(
 }
 
 export function useProverb(id: string | Ref<string>) {
-  const client = useSupabaseClient<any>()
   const proverb = ref<ProverbDetail | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
@@ -42,19 +41,12 @@ export function useProverb(id: string | Ref<string>) {
     error.value = null
 
     try {
-      const { data, error: fetchError } = await client
-        .from('proverbs')
-        .select('*, profiles(display_name), guess_options(*)')
-        .eq('id', proverbId)
-        .eq('status', 'published')
-        .single()
-
-      if (fetchError) throw fetchError
-      const normalized = data as ProverbDetail
+      const response = await $fetch<{ proverb: ProverbDetail }>(`/api/proverbs/${proverbId}`)
+      const normalized = response.proverb as ProverbDetail
       normalized.guess_options = normalizeGuessOptions(normalized.guess_options)
       proverb.value = normalized
     } catch (e: any) {
-      error.value = e.message || 'Failed to fetch proverb'
+      error.value = e?.data?.message || e?.message || 'Failed to fetch proverb'
     } finally {
       loading.value = false
     }

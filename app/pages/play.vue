@@ -4,48 +4,16 @@ useSeoMeta({
   description: 'Redirecting to a random unanswered proverb.'
 })
 
-const client = useSupabaseClient<any>()
 const loading = ref(true)
 const error = ref<string | null>(null)
 
 async function redirectToRandomUnansweredProverb() {
   try {
-    const { data: { session } } = await client.auth.getSession()
-    const userId = session?.user?.id ?? null
-    let guessedIds: string[] = []
-
-    if (userId) {
-      // Join proverbs with guesses to collect this user's already answered proverb IDs.
-      const { data: guessedRows, error: guessedError } = await client
-        .from('proverbs')
-        .select('id, guesses!inner(user_id)')
-        .eq('status', 'published')
-        .eq('guesses.user_id', userId)
-
-      if (guessedError) throw guessedError
-      guessedIds = (guessedRows || []).map((row: any) => row.id)
-    }
-
-    let query = client
-      .from('proverbs')
-      .select('id')
-      .eq('status', 'published')
-      .limit(200)
-
-    if (userId && guessedIds.length > 0) {
-      query = query.not('id', 'in', `(${guessedIds.join(',')})`)
-    }
-
-    const { data: candidates, error: candidatesError } = await query
-    if (candidatesError) throw candidatesError
-
-    const ids = (candidates || []).map((row: { id: string }) => row.id)
-    if (ids.length === 0) return
-
-    const randomId = ids[Math.floor(Math.random() * ids.length)]
-    await navigateTo(`/p/${randomId}`, { replace: true })
+    const response = await $fetch<{ id: string | null }>('/api/play/random')
+    if (!response.id) return
+    await navigateTo(`/p/${response.id}`, { replace: true })
   } catch (e: any) {
-    error.value = e?.message || 'Could not load a playable proverb.'
+    error.value = e?.data?.message || e?.message || 'Could not load a playable proverb.'
   } finally {
     loading.value = false
   }
