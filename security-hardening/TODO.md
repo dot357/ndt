@@ -28,7 +28,7 @@
 - [x] Move leaderboard reads from client Supabase views to a Nuxt server API route.
 - [x] Move play-mode random selection and manage dashboard stats reads to Nuxt server API routes.
 - [x] Add CAPTCHA (reCAPTCHA/Turnstile via provider abstraction) to high-risk write actions (`submit`, `report`, `reactions`, `guess`).
-- [ ] Move auth magic-link initiation behind Nuxt API and protect it with CAPTCHA.
+- [x] Move auth magic-link initiation behind Nuxt API and protect it with CAPTCHA.
 - [x] Add CAPTCHA monitor-mode telemetry, then enforce-mode thresholds after tuning.
 - [x] Add CAPTCHA env configuration to `.env.example` and deployment docs.
 
@@ -39,10 +39,9 @@
 - Validation is green for `pnpm typecheck` and `pnpm build`.
 - Lint cannot currently run in this environment because `eslint` is not installed/available (`Command "eslint" not found`).
 - Remaining hardening opportunity: configure shared Nitro storage (for example Redis) for globally consistent rate limits across instances and reduce race windows under high concurrency.
-- CAPTCHA is now integrated in monitor mode for high-risk proverb write actions; enforce mode and auth magic-link protection are still pending.
+- CAPTCHA is now integrated in monitor mode for high-risk proverb write actions and auth magic-link initiation; enforce mode is still pending.
 
 ## Reassessment (2026-02-22)
-- High: auth magic-link initiation is still direct client -> Supabase (`app/components/AuthModal.vue`), so it is outside Nuxt API rate-limit/CAPTCHA controls.
 - Medium: enforce-mode misconfiguration gap was found and fixed in `server/utils/captcha.ts` (enforce mode now fails closed if CAPTCHA verification is skipped due to missing/invalid server config).
 - Low: monitor-mode logging currently uses server logs only (`console.warn`); no centralized metrics sink yet.
 
@@ -72,3 +71,4 @@
 - 2026-02-22: Reassessed security posture; confirmed only remaining direct client Supabase path is magic-link initiation in `app/components/AuthModal.vue`.
 - 2026-02-22: Fixed CAPTCHA enforce-mode fail-open edge case in `server/utils/captcha.ts`; if verification is skipped due to misconfiguration, enforce mode now returns server error instead of allowing writes.
 - 2026-02-22: Re-ran `pnpm typecheck` after CAPTCHA guard fix; passed.
+- 2026-02-22: Added `POST /api/auth/magic-link` with dual rate limits (IP + email) and CAPTCHA (`request_magic_link`), and moved `app/components/AuthModal.vue` to call this Nuxt API route instead of direct client Supabase auth calls.

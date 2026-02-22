@@ -14,8 +14,7 @@
 - `POST /api/proverbs/:id/guess`
 
 ### High Priority (auth initiation / abuse-cost)
-- Auth magic-link request in `app/components/AuthModal.vue` (`client.auth.signInWithOtp`)
-  - Recommended: move to a Nuxt API wrapper endpoint first, then apply CAPTCHA there.
+- `POST /api/auth/magic-link` (Nuxt wrapper for Supabase `signInWithOtp`)
 
 ### Medium Priority (admin/mod actions)
 - `POST /api/proverbs/:id/remove`
@@ -77,7 +76,7 @@
 - Then enable on `guess` if no UX regressions.
 
 ### Phase 3 (auth + admin optional)
-- Move magic-link initiation behind Nuxt API and enforce CAPTCHA.
+- Magic-link initiation moved behind Nuxt API and protected with CAPTCHA.
 - Optionally add CAPTCHA on selected admin mutations if abuse attempts are observed.
 
 ## Current Action Mapping
@@ -85,7 +84,7 @@
 - `report_proverb`
 - `toggle_reaction`
 - `submit_guess`
-- `request_magic_link` (planned)
+- `request_magic_link`
 
 ## Telemetry / Logging Requirements
 - Per protected action capture:
@@ -109,7 +108,7 @@
   - [x] guess submit
 - [x] Add monitor-mode logs and dashboard checks.
 - [ ] Enable blocking mode with tuned thresholds.
-- [ ] Move auth magic-link request behind Nuxt API and add CAPTCHA.
+- [x] Move auth magic-link request behind Nuxt API and add CAPTCHA.
 - [ ] Run verification (`pnpm typecheck`, `pnpm build`) and manual smoke tests.
 
 ## Manual Test Matrix
@@ -126,12 +125,14 @@
   - `POST /api/proverbs/:id/report`
   - `POST /api/proverbs/:id/reactions`
   - `POST /api/proverbs/:id/guess`
+  - `POST /api/auth/magic-link`
 - Added `app/composables/useCaptcha.ts` and Turnstile global typings in `app/types/turnstile.d.ts`.
 - Wired `captchaToken` from client calls in:
   - `app/composables/useSubmitProverb.ts`
   - `app/composables/useReport.ts`
   - `app/composables/useReactions.ts`
   - `app/pages/p/[id]/index.vue` (guess submit)
+  - `app/components/AuthModal.vue` (magic-link request)
 - Added runtime config keys in `nuxt.config.ts`:
   - `captchaProvider`, `captchaSecretKey`, `captchaMode`, `public.captchaSiteKey`
 - Validation completed:

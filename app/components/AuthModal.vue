@@ -1,18 +1,11 @@
 <script setup lang="ts">
 const open = defineModel<boolean>({ default: false })
 
-const client = useSupabaseClient<any>()
+const { getToken } = useCaptcha()
 const email = ref('')
 const loading = ref(false)
 const sent = ref(false)
 const error = ref('')
-
-const redirectUrl = computed(() => {
-  if (import.meta.client) {
-    return `${window.location.origin}/auth/confirm`
-  }
-  return '/auth/confirm'
-})
 
 async function sendMagicLink() {
   if (!email.value) return
@@ -20,19 +13,22 @@ async function sendMagicLink() {
   loading.value = true
   error.value = ''
 
-  const { error: authError } = await client.auth.signInWithOtp({
-    email: email.value,
-    options: {
-      emailRedirectTo: redirectUrl.value
-    }
-  })
+  try {
+    const captchaToken = await getToken('request_magic_link')
 
-  loading.value = false
+    await $fetch('/api/auth/magic-link', {
+      method: 'POST',
+      body: {
+        email: email.value,
+        captchaToken
+      }
+    })
 
-  if (authError) {
-    error.value = authError.message
-  } else {
     sent.value = true
+  } catch (err: any) {
+    error.value = err?.data?.message || err?.message || 'Failed to send magic link.'
+  } finally {
+    loading.value = false
   }
 }
 
