@@ -12,7 +12,20 @@ const showReportModal = ref(false)
 const showRemoveModal = ref(false)
 const removing = ref(false)
 const removeError = ref<string | null>(null)
-const meaningRevealed = ref(false)
+const selectedOption = ref<string | null>(null)
+const result = ref<'correct' | 'wrong' | null>(null)
+const answering = ref(false)
+const hasAnswered = ref(false)
+const distribution = ref<Array<{
+  option_id: string
+  option_text: string
+  is_correct: boolean
+  pick_count: number
+  pick_percentage: number
+}>>([])
+const shuffledOptions = ref<Array<{ id: string; option_text: string; is_correct: boolean }>>([])
+
+const ANON_PROVERB_GUESSES_KEY = 'ndt_proverb_detail_guesses'
 
 const timeAgo = computed(() => {
   if (!proverb.value) return ''
@@ -31,6 +44,125 @@ watchEffect(() => {
       description: `Literally: "${proverb.value.literal_text}" — A ${proverb.value.language_name} proverb`
     })
   }
+})
+
+function getAnonGuesses(): Record<string, string> {
+  if (import.meta.server) return {}
+  try {
+    return JSON.parse(localStorage.getItem(ANON_PROVERB_GUESSES_KEY) || '{}')
+  } catch {
+    return {}
+  }
+}
+
+function setAnonGuess(proverbId: string, optionId: string) {
+  const guesses = getAnonGuesses()
+  guesses[proverbId] = optionId
+  localStorage.setItem(ANON_PROVERB_GUESSES_KEY, JSON.stringify(guesses))
+}
+
+async function getSessionUserId(): Promise<string | null> {
+  const { data: { session } } = await client.auth.getSession()
+  return session?.user?.id ?? null
+}
+
+function resetGuessState() {
+  selectedOption.value = null
+  result.value = null
+  answering.value = false
+  hasAnswered.value = false
+  distribution.value = []
+  shuffledOptions.value = []
+}
+
+function setupShuffledOptions() {
+  if (!proverb.value) return
+  shuffledOptions.value = [...(proverb.value.guess_options || [])]
+    .sort(() => Math.random() - 0.5)
+}
+
+async function fetchDistribution() {
+  if (!proverb.value) return
+  try {
+    const { data } = await client.rpc('get_answer_distribution', {
+      p_proverb_id: proverb.value.id
+    })
+    distribution.value = data || []
+  } catch {
+    // Non-critical
+  }
+}
+
+async function restoreExistingGuess() {
+  if (!proverb.value) return
+
+  const userId = await getSessionUserId()
+  let previousOptionId: string | null = null
+
+  if (userId) {
+    const { data } = await client
+      .from('guesses')
+      .select('selected_option, is_correct')
+      .eq('proverb_id', proverb.value.id)
+      .eq('user_id', userId)
+      .maybeSingle()
+
+    if (data?.selected_option) {
+      previousOptionId = data.selected_option
+      result.value = data.is_correct ? 'correct' : 'wrong'
+    }
+  } else {
+    const anonGuess = getAnonGuesses()[proverb.value.id]
+    if (anonGuess) {
+      previousOptionId = anonGuess
+      const picked = proverb.value.guess_options.find(o => o.id === anonGuess)
+      result.value = picked?.is_correct ? 'correct' : 'wrong'
+    }
+  }
+
+  if (!previousOptionId) return
+
+  selectedOption.value = previousOptionId
+  hasAnswered.value = true
+  await fetchDistribution()
+}
+
+async function submitGuess(optionId: string) {
+  if (!proverb.value || hasAnswered.value || answering.value) return
+
+  answering.value = true
+  selectedOption.value = optionId
+
+  const picked = proverb.value.guess_options.find(o => o.id === optionId)
+  const isCorrect = !!picked?.is_correct
+  result.value = isCorrect ? 'correct' : 'wrong'
+
+  const userId = await getSessionUserId()
+
+  if (userId) {
+    const { error: insertError } = await client.from('guesses').insert({
+      proverb_id: proverb.value.id,
+      selected_option: optionId,
+      is_correct: isCorrect
+    })
+
+    if (insertError) {
+      console.error('Failed to save guess:', insertError.message)
+    }
+  } else {
+    setAnonGuess(proverb.value.id, optionId)
+  }
+
+  hasAnswered.value = true
+  await fetchDistribution()
+  answering.value = false
+}
+
+watch(() => proverb.value?.id, async () => {
+  resetGuessState()
+  if (!proverb.value) return
+  setupShuffledOptions()
+  await restoreExistingGuess()
 })
 
 function closeRemoveModal() {
@@ -122,23 +254,92 @@ async function removeProverb() {
           </div>
         </UCard>
 
-        <!-- Meaning reveal -->
-        <UCard v-if="meaningRevealed" class="border-primary/30 bg-accented">
-          <div class="space-y-1">
-            <p class="text-xs font-medium text-primary uppercase tracking-wide">Actual Meaning</p>
-            <p class="text-lg font-medium">{{ proverb.meaning_text }}</p>
+        <UCard>
+          <div class="space-y-4">
+            <p class="text-sm font-medium">What does this proverb actually mean?</p>
+
+            <div v-if="!hasAnswered" class="grid gap-3">
+              <UButton
+                v-for="option in shuffledOptions"
+                :key="option.id"
+                :label="option.option_text"
+                color="neutral"
+                variant="outline"
+                size="lg"
+                block
+                class="text-left justify-start"
+                :loading="answering && selectedOption === option.id"
+                :disabled="answering"
+                @click="submitGuess(option.id)"
+              />
+            </div>
+
+            <div v-else-if="distribution.length > 0" class="grid gap-3">
+              <div
+                v-for="item in distribution"
+                :key="item.option_id"
+                class="rounded-lg border p-4"
+                :class="[
+                  item.is_correct
+                    ? 'border-green-500/50 bg-green-500/5'
+                    : item.option_id === selectedOption
+                      ? 'border-red-500/50 bg-red-500/5'
+                      : 'border-default bg-default'
+                ]"
+              >
+                <div class="flex items-center justify-between mb-1">
+                  <div class="flex items-center gap-2">
+                    <UBadge
+                      v-if="item.is_correct"
+                      color="success"
+                      variant="subtle"
+                      size="xs"
+                    >
+                      {{ item.option_id === selectedOption ? 'Correct' : 'Correct answer' }}
+                    </UBadge>
+                    <UBadge
+                      v-else
+                      color="error"
+                      variant="subtle"
+                      size="xs"
+                    >
+                      Incorrect
+                    </UBadge>
+                    <UBadge
+                      v-if="item.option_id === selectedOption"
+                      color="primary"
+                      variant="subtle"
+                      size="xs"
+                    >
+                      YOUR CHOICE
+                    </UBadge>
+                  </div>
+                  <span class="text-sm font-semibold tabular-nums">{{ item.pick_percentage }}%</span>
+                </div>
+
+                <p class="text-sm mb-2">{{ item.option_text }}</p>
+
+                <div class="h-2 rounded-full bg-elevated overflow-hidden">
+                  <div
+                    class="h-full rounded-full transition-all duration-700 ease-out"
+                    :class="[
+                      item.is_correct
+                        ? 'bg-green-500'
+                        : item.option_id === selectedOption
+                          ? 'bg-red-500'
+                          : 'bg-(--ui-border-accented)'
+                    ]"
+                    :style="{ width: `${item.pick_percentage}%` }"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div v-else class="text-sm text-muted">
+              Answer distribution is not available yet.
+            </div>
           </div>
         </UCard>
-
-        <UButton
-          v-else
-          label="Reveal the meaning"
-          icon="i-lucide-eye"
-          variant="soft"
-          size="lg"
-          block
-          @click="meaningRevealed = true"
-        />
 
         <!-- Reactions -->
         <div class="pt-4 border-t border-default space-y-3">

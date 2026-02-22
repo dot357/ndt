@@ -16,6 +16,8 @@ const {
   nextProverb
 } = useGuess()
 
+const remainingCount = computed(() => Math.max(totalProverbs.value - answeredCount.value, 0))
+
 function optionColor(optionId: string, isCorrect: boolean) {
   if (!result.value) return 'neutral'
   if (optionId === selectedOption.value) {
@@ -40,7 +42,7 @@ function optionVariant(optionId: string, isCorrect: boolean) {
         {{ sessionScore.correct }} / {{ sessionScore.total }} correct
       </UBadge>
       <UBadge v-if="totalProverbs > 0" color="neutral" variant="subtle">
-        {{ totalProverbs - answeredCount }} remaining
+        {{ remainingCount }} remaining
       </UBadge>
     </div>
 
