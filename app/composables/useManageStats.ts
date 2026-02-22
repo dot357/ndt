@@ -6,6 +6,7 @@ interface DashboardStats {
   rejectedProverbs: number
   totalReactions: number
   openReports: number
+  emailOptInUsers: number
 }
 
 interface ModAction {
@@ -26,7 +27,8 @@ export function useManageStats() {
     pendingProverbs: 0,
     rejectedProverbs: 0,
     totalReactions: 0,
-    openReports: 0
+    openReports: 0,
+    emailOptInUsers: 0
   })
   const recentActions = ref<ModAction[]>([])
   const loading = ref(false)

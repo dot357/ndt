@@ -68,62 +68,85 @@ function timeAgo(date: string) {
       <p class="text-muted">No {{ filter }} reports.</p>
     </div>
 
-    <!-- Report list -->
-    <div v-else class="space-y-3">
-      <UCard v-for="report in reports" :key="report.id">
-        <div class="space-y-3">
-          <!-- Proverb preview -->
-          <div v-if="report.proverb" class="flex items-start gap-2">
-            <CountryBadge :country-code="report.proverb.country_code" :language-name="report.proverb.language_name" />
-            <div class="min-w-0 flex-1">
-              <p class="font-medium truncate">"{{ report.proverb.original_text }}"</p>
-              <p class="text-sm text-muted truncate">Literally: "{{ report.proverb.literal_text }}"</p>
-            </div>
-          </div>
-
-          <!-- Report details -->
-          <div class="bg-accented rounded-md p-3">
-            <div class="flex items-center gap-2 mb-1">
-              <UIcon name="i-lucide-flag" class="size-3.5 text-warning" />
-              <span class="text-xs font-medium text-muted">
-                Reported by {{ report.reporter?.display_name || 'Unknown' }} · {{ timeAgo(report.created_at) }}
-              </span>
-            </div>
-            <p class="text-sm">{{ report.reason }}</p>
-          </div>
-
-          <!-- Actions -->
-          <div v-if="filter === 'open'" class="flex items-center gap-2">
-            <UButton
-              label="Remove proverb"
-              icon="i-lucide-shield-alert"
-              size="xs"
-              color="error"
-              variant="soft"
-              :loading="actionLoading === report.id"
-              @click="handleResolve(report.id)"
-            />
-            <UButton
-              label="False report"
-              icon="i-lucide-shield-off"
-              size="xs"
-              color="neutral"
-              variant="soft"
-              :loading="actionLoading === report.id"
-              @click="handleDismiss(report.id)"
-            />
-            <UButton
-              v-if="report.proverb"
-              :to="`/p/${report.proverb.id}`"
-              label="View"
-              icon="i-lucide-external-link"
-              size="xs"
-              variant="ghost"
-              color="neutral"
-            />
-          </div>
-        </div>
-      </UCard>
-    </div>
+    <!-- Report table -->
+    <UCard v-else>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-xs text-muted uppercase tracking-wide border-b border-default">
+              <th class="pb-2 pr-3 font-medium">Proverb</th>
+              <th class="pb-2 pr-3 font-medium">Language</th>
+              <th class="pb-2 pr-3 font-medium">Reporter</th>
+              <th class="pb-2 pr-3 font-medium">Reason</th>
+              <th class="pb-2 pr-3 font-medium">When</th>
+              <th v-if="filter === 'open'" class="pb-2 font-medium text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="report in reports" :key="report.id" class="border-b border-default last:border-0">
+              <td class="py-2 pr-3 max-w-sm">
+                <div v-if="report.proverb" class="space-y-0.5">
+                  <p class="font-medium truncate" :title="report.proverb.original_text">
+                    "{{ report.proverb.original_text }}"
+                  </p>
+                  <p class="text-xs text-dimmed truncate" :title="report.proverb.literal_text">
+                    Literally: "{{ report.proverb.literal_text }}"
+                  </p>
+                </div>
+                <span v-else class="text-xs text-dimmed">Proverb removed</span>
+              </td>
+              <td class="py-2 pr-3">
+                <CountryBadge
+                  v-if="report.proverb"
+                  :country-code="report.proverb.country_code"
+                  :language-name="report.proverb.language_name"
+                />
+                <span v-else class="text-xs text-dimmed">N/A</span>
+              </td>
+              <td class="py-2 pr-3 text-xs text-dimmed">
+                {{ report.reporter?.display_name || 'Unknown' }}
+              </td>
+              <td class="py-2 pr-3 max-w-md truncate" :title="report.reason">
+                {{ report.reason }}
+              </td>
+              <td class="py-2 pr-3 text-xs text-dimmed whitespace-nowrap">
+                {{ timeAgo(report.created_at) }}
+              </td>
+              <td v-if="filter === 'open'" class="py-2 text-right">
+                <div class="inline-flex items-center gap-1.5">
+                  <UButton
+                    label="Remove proverb"
+                    icon="i-lucide-shield-alert"
+                    size="xs"
+                    color="error"
+                    variant="soft"
+                    :loading="actionLoading === report.id"
+                    @click="handleResolve(report.id)"
+                  />
+                  <UButton
+                    label="False report"
+                    icon="i-lucide-shield-off"
+                    size="xs"
+                    color="neutral"
+                    variant="soft"
+                    :loading="actionLoading === report.id"
+                    @click="handleDismiss(report.id)"
+                  />
+                  <UButton
+                    v-if="report.proverb"
+                    :to="`/p/${report.proverb.id}`"
+                    label="View"
+                    icon="i-lucide-external-link"
+                    size="xs"
+                    variant="ghost"
+                    color="neutral"
+                  />
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </UCard>
   </div>
 </template>

@@ -2,6 +2,7 @@ type Role = 'user' | 'moderator' | 'admin'
 
 export function useUserRole() {
   const user = useSupabaseUser()
+  const client = useSupabaseClient<any>()
 
   const role = useState<Role>('user-role', () => 'user')
   const bannedAt = useState<string | null>('user-banned-at', () => null)
@@ -26,9 +27,23 @@ export function useUserRole() {
     }
 
     try {
-      const response = await $fetch<{ role: Role; banned_at: string | null }>('/api/profile/role')
-      role.value = response.role || 'user'
-      bannedAt.value = response.banned_at || null
+      // On client, use Supabase directly to avoid SSR cookie/session timing issues on hard refresh.
+      if (process.client) {
+        const { data, error } = await client
+          .from('profiles')
+          .select('role, banned_at')
+          .eq('id', uid)
+          .maybeSingle()
+
+        if (error) throw error
+
+        role.value = (data?.role as Role) || 'user'
+        bannedAt.value = data?.banned_at || null
+      } else {
+        const response = await $fetch<{ role: Role; banned_at: string | null }>('/api/profile/role')
+        role.value = response.role || 'user'
+        bannedAt.value = response.banned_at || null
+      }
     } catch (e) {
       console.warn('[useUserRole] Failed to fetch role:', e)
       role.value = 'user'

@@ -23,6 +23,7 @@ const props = withDefaults(defineProps<{
 })
 
 const toast = useToast()
+const client = useSupabaseClient<any>()
 
 const proverbs = ref<ProverbRow[]>([])
 const loading = ref(true)
@@ -65,31 +66,47 @@ function formatDate(date: string) {
 }
 
 async function fetchLanguages() {
-  const response = await $fetch<{ languages: { language: string; count: number }[] }>('/api/manage/proverbs/languages', {
-    query: {
-      userId: props.userId
-    }
-  })
-  languages.value = response.languages || []
+  try {
+    const response = await $fetch<{ languages: { language: string; count: number }[] }>('/api/manage/proverbs/languages', {
+      query: {
+        userId: props.userId
+      },
+      headers: await getAuthHeaders()
+    })
+    languages.value = response.languages || []
+  } catch {
+    languages.value = []
+  }
 }
 
 async function fetchProverbs() {
   loading.value = true
 
-  const from = page.value * props.limit
-  const to = from + props.limit - 1
+  try {
+    const response = await $fetch<{ proverbs: ProverbRow[]; total: number }>('/api/manage/proverbs', {
+      query: {
+        userId: props.userId,
+        page: page.value,
+        limit: props.limit,
+        language: languageFilter.value
+      },
+      headers: await getAuthHeaders()
+    })
+    proverbs.value = (response.proverbs || []) as unknown as ProverbRow[]
+    total.value = response.total || 0
+  } catch {
+    proverbs.value = []
+    total.value = 0
+  } finally {
+    loading.value = false
+  }
+}
 
-  const response = await $fetch<{ proverbs: ProverbRow[]; total: number }>('/api/manage/proverbs', {
-    query: {
-      userId: props.userId,
-      page: page.value,
-      limit: props.limit,
-      language: languageFilter.value
-    }
-  })
-  proverbs.value = (response.proverbs || []) as unknown as ProverbRow[]
-  total.value = response.total || 0
-  loading.value = false
+async function getAuthHeaders() {
+  if (process.server) return undefined
+  const { data } = await client.auth.getSession()
+  const token = data.session?.access_token
+  return token ? { Authorization: `Bearer ${token}` } : undefined
 }
 
 function goToPage(nextPage: number) {

@@ -4,13 +4,19 @@ definePageMeta({ layout: 'manage', middleware: 'admin' })
 useSeoMeta({ title: 'Users — NDT Admin' })
 
 const { isAdmin } = useUserRole()
-const { users, loading, search, statusFilter, fetchUsers, banUser, unbanUser, changeRole } = useManageUsers()
+const route = useRoute()
+const router = useRouter()
+const { users, loading, search, statusFilter, emailFilter, fetchUsers, banUser, unbanUser, changeRole } = useManageUsers()
 
 const actionLoading = ref<string | null>(null)
 const expandedUser = ref<string | null>(null)
 const statusOptions = [
   { label: 'Unbanned', value: 'active' },
   { label: 'Banned', value: 'banned' }
+]
+const emailOptions = [
+  { label: 'Opted in', value: 'opted_in' },
+  { label: 'Opted out', value: 'opted_out' }
 ]
 
 // Redirect non-admins
@@ -49,9 +55,45 @@ function updateStatusFilter(values: string[]) {
   fetchUsers()
 }
 
+function updateEmailFilter(values: string[]) {
+  emailFilter.value = values.filter(v => v === 'opted_in' || v === 'opted_out')
+  fetchUsers()
+}
+
+function parseMultiQuery<T extends string>(
+  value: unknown,
+  allowed: T[],
+  fallback: T[]
+): T[] {
+  const raw = String(value || '')
+  const items = raw.split(',').map(v => v.trim()).filter(Boolean) as T[]
+  const filtered = items.filter(v => allowed.includes(v))
+  return filtered.length > 0 ? filtered : fallback
+}
+
+function syncQueryFromState() {
+  const nextQuery = {
+    ...route.query,
+    search: search.value.trim() || undefined,
+    status: statusFilter.value.join(',') || undefined,
+    email: emailFilter.value.join(',') || undefined
+  }
+
+  router.replace({ query: nextQuery })
+}
+
 function formatDate(date: string) {
   return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
+
+search.value = String(route.query.search || '')
+statusFilter.value = parseMultiQuery(route.query.status, ['active', 'banned'], ['active'])
+emailFilter.value = parseMultiQuery(route.query.email, ['opted_in', 'opted_out'], ['opted_in', 'opted_out'])
+await fetchUsers()
+
+watch([search, statusFilter, emailFilter], () => {
+  syncQueryFromState()
+}, { deep: true })
 </script>
 
 <template>
@@ -80,6 +122,15 @@ function formatDate(date: string) {
               placeholder="Status"
               class="w-full sm:w-52"
               @update:model-value="updateStatusFilter"
+            />
+            <USelectMenu
+              :model-value="emailFilter"
+              :items="emailOptions"
+              value-key="value"
+              multiple
+              placeholder="Email"
+              class="w-full sm:w-52"
+              @update:model-value="updateEmailFilter"
             />
           </div>
           <span class="text-xs text-dimmed">

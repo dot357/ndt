@@ -4,6 +4,7 @@ interface ManagedUser {
   role: string
   banned_at: string | null
   created_at: string
+  marketing_updates_opt_in: boolean
 }
 
 interface UserProverb {
@@ -21,6 +22,7 @@ export function useManageUsers() {
   const loading = ref(false)
   const search = ref('')
   const statusFilter = ref<Array<'active' | 'banned'>>(['active'])
+  const emailFilter = ref<Array<'opted_in' | 'opted_out'>>(['opted_in', 'opted_out'])
 
   async function fetchUsers() {
     loading.value = true
@@ -34,7 +36,8 @@ export function useManageUsers() {
       const response = await $fetch<{ users: ManagedUser[] }>('/api/manage/users', {
         query: {
           search: search.value.trim(),
-          status: statusFilter.value.join(',')
+          status: statusFilter.value.join(','),
+          email: emailFilter.value.join(',')
         }
       })
       users.value = response.users || []
@@ -112,13 +115,12 @@ export function useManageUsers() {
     }
   }
 
-  fetchUsers()
-
   return {
     users,
     loading,
     search,
     statusFilter,
+    emailFilter,
     fetchUsers,
     banUser,
     unbanUser,
