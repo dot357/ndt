@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const {
+  isAuthenticated,
   proverb,
   options,
   selectedOption,
@@ -15,6 +16,7 @@ const {
   submitGuess,
   nextProverb
 } = useGuess()
+const showAuthModal = inject<Ref<boolean> | undefined>('showAuthModal', undefined)
 
 const remainingCount = computed(() => Math.max(totalProverbs.value - answeredCount.value, 0))
 
@@ -31,6 +33,10 @@ function optionVariant(optionId: string, isCorrect: boolean) {
   if (!result.value) return 'outline'
   if (optionId === selectedOption.value || isCorrect) return 'solid'
   return 'outline'
+}
+
+function openSignIn() {
+  if (showAuthModal) showAuthModal.value = true
 }
 </script>
 
@@ -68,6 +74,14 @@ function optionVariant(optionId: string, isCorrect: boolean) {
     <UCard v-else-if="error" class="text-center py-8">
       <p class="text-red-500 mb-4">{{ error }}</p>
       <UButton label="Try again" @click="nextProverb" />
+    </UCard>
+
+    <!-- Auth required -->
+    <UCard v-else-if="!isAuthenticated" class="text-center py-8">
+      <UIcon name="i-lucide-lock" class="size-12 text-primary mx-auto mb-4" />
+      <h3 class="text-lg font-semibold mb-2">Sign in required</h3>
+      <p class="text-muted mb-4">Please sign in to play and submit answers.</p>
+      <UButton label="Sign in" icon="i-lucide-log-in" @click="openSignIn" />
     </UCard>
 
     <!-- Game -->

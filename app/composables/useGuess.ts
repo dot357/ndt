@@ -22,27 +22,9 @@ interface DistributionItem {
   pick_percentage: number
 }
 
-const ANON_GUESSES_KEY = 'ndt_guessed_proverbs'
-
-function getAnonGuessedIds(): string[] {
-  if (import.meta.server) return []
-  try {
-    return JSON.parse(localStorage.getItem(ANON_GUESSES_KEY) || '[]')
-  } catch {
-    return []
-  }
-}
-
-function addAnonGuessedId(id: string) {
-  const ids = getAnonGuessedIds()
-  if (!ids.includes(id)) {
-    ids.push(id)
-    localStorage.setItem(ANON_GUESSES_KEY, JSON.stringify(ids))
-  }
-}
-
 export function useGuess() {
   const client = useSupabaseClient<any>()
+  const user = useSupabaseUser()
 
   const proverb = ref<GuessProverb | null>(null)
   const options = ref<GuessOption[]>([])
@@ -56,6 +38,7 @@ export function useGuess() {
   const distribution = ref<DistributionItem[]>([])
   const totalProverbs = ref(0)
   const answeredCount = ref(0)
+  const isAuthenticated = computed(() => !!user.value)
 
   function normalizeGuessOptions(options: GuessOption[]): GuessOption[] {
     if (!options.length) return []
@@ -78,12 +61,20 @@ export function useGuess() {
     return Array.from(byId.values())
   }
 
-  async function getSessionUserId(): Promise<string | null> {
-    const { data: { session } } = await client.auth.getSession()
-    return session?.user?.id ?? null
-  }
-
   async function fetchNext() {
+    const userId = user.value?.id
+    if (!userId) {
+      proverb.value = null
+      options.value = []
+      distribution.value = []
+      selectedOption.value = null
+      result.value = null
+      noMore.value = false
+      loadingNext.value = false
+      answeredCount.value = 0
+      return
+    }
+
     loadingNext.value = true
     error.value = null
     result.value = null
@@ -91,21 +82,16 @@ export function useGuess() {
     distribution.value = []
 
     try {
-      const userId = await getSessionUserId()
+      // Join proverbs with guesses to get this user's already answered proverb IDs.
+      const { data: guessedRows, error: guessedError } = await client
+        .from('proverbs')
+        .select('id, guesses!inner(user_id)')
+        .eq('status', 'published')
+        .eq('guesses.user_id', userId)
 
-      // Get IDs the user has already guessed
-      let guessedIds: string[] = []
-      if (userId) {
-        const { data: guessed } = await client
-          .from('guesses')
-          .select('proverb_id')
-          .eq('user_id', userId)
+      if (guessedError) throw guessedError
 
-        guessedIds = (guessed || []).map((g: any) => g.proverb_id)
-      } else {
-        guessedIds = getAnonGuessedIds()
-      }
-
+      const guessedIds = (guessedRows || []).map((row: any) => row.id)
       answeredCount.value = guessedIds.length
 
       // Get total published proverbs count (with guess options)
@@ -161,7 +147,7 @@ export function useGuess() {
   }
 
   async function submitGuess(optionId: string) {
-    if (!proverb.value || loading.value) return
+    if (!proverb.value || loading.value || !user.value?.id) return
 
     loading.value = true
     selectedOption.value = optionId
@@ -174,19 +160,25 @@ export function useGuess() {
     if (isCorrect) sessionScore.value.correct++
 
     // Store guess
-    const userId = await getSessionUserId()
-    if (userId) {
-      // user_id defaults to auth.uid() in DB, no need to pass it
-      const { error: insertError } = await client.from('guesses').insert({
-        proverb_id: proverb.value.id,
-        selected_option: optionId,
-        is_correct: isCorrect
-      })
-      if (insertError) {
-        console.error('Failed to save guess:', insertError.message)
+    const userId = user.value.id
+    const { error: insertError } = await client.from('guesses').insert({
+      proverb_id: proverb.value.id,
+      selected_option: optionId,
+      is_correct: isCorrect
+    })
+    if (insertError) {
+      console.error('Failed to save guess:', insertError.message)
+      const { data: existing } = await client
+        .from('guesses')
+        .select('selected_option, is_correct')
+        .eq('proverb_id', proverb.value.id)
+        .eq('user_id', userId)
+        .maybeSingle()
+
+      if (existing?.selected_option) {
+        selectedOption.value = existing.selected_option
+        result.value = existing.is_correct ? 'correct' : 'wrong'
       }
-    } else {
-      addAnonGuessedId(proverb.value.id)
     }
 
     answeredCount.value++
@@ -197,10 +189,28 @@ export function useGuess() {
     loading.value = false
   }
 
-  // Load first proverb
-  fetchNext()
+  watch(
+    () => user.value?.id,
+    async (nextUserId) => {
+      if (nextUserId) {
+        await fetchNext()
+        return
+      }
+
+      proverb.value = null
+      options.value = []
+      selectedOption.value = null
+      result.value = null
+      distribution.value = []
+      answeredCount.value = 0
+      noMore.value = false
+      error.value = null
+    },
+    { immediate: true }
+  )
 
   return {
+    isAuthenticated,
     proverb,
     options,
     selectedOption,

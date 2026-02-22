@@ -6,6 +6,7 @@ const client = useSupabaseClient<any>()
 const toast = useToast()
 const { proverb, loading, error } = useProverb(proverbId)
 const user = useSupabaseUser()
+const showAuthModal = inject<Ref<boolean> | undefined>('showAuthModal', undefined)
 const { isBanned, isAdmin } = useUserRole()
 const { hasReported } = useReport(proverbId)
 const showReportModal = ref(false)
@@ -27,8 +28,7 @@ const distribution = ref<Array<{
 }>>([])
 const shuffledOptions = ref<Array<{ id: string; option_text: string; is_correct: boolean }>>([])
 let hammerManager: HammerManager | null = null
-
-const ANON_PROVERB_GUESSES_KEY = 'ndt_proverb_detail_guesses'
+const isAuthenticated = computed(() => !!user.value)
 
 const timeAgo = computed(() => {
   if (!proverb.value) return ''
@@ -56,24 +56,21 @@ watchEffect(() => {
   }
 })
 
-function getAnonGuesses(): Record<string, string> {
-  if (import.meta.server) return {}
-  try {
-    return JSON.parse(localStorage.getItem(ANON_PROVERB_GUESSES_KEY) || '{}')
-  } catch {
-    return {}
-  }
-}
-
-function setAnonGuess(proverbId: string, optionId: string) {
-  const guesses = getAnonGuesses()
-  guesses[proverbId] = optionId
-  localStorage.setItem(ANON_PROVERB_GUESSES_KEY, JSON.stringify(guesses))
-}
-
 async function getSessionUserId(): Promise<string | null> {
   const { data: { session } } = await client.auth.getSession()
   return session?.user?.id ?? null
+}
+
+function requireAuth(message: string) {
+  if (isAuthenticated.value) return true
+  toast.add({
+    title: 'Sign in required',
+    description: message,
+    color: 'neutral',
+    icon: 'i-lucide-log-in'
+  })
+  if (showAuthModal) showAuthModal.value = true
+  return false
 }
 
 function isDesktopClient() {
@@ -100,6 +97,7 @@ function canUseSwipeNavigation() {
 
 async function goToRandomProverb() {
   if (!proverb.value || navigatingRandom.value) return
+  if (!requireAuth('Sign in to open the next random proverb.')) return
 
   navigatingRandom.value = true
 
@@ -239,7 +237,7 @@ async function fetchDistribution() {
     const { data } = await client.rpc('get_answer_distribution', {
       p_proverb_id: proverb.value.id
     })
-    distribution.value = data || []
+    distribution.value = (data || []) as typeof distribution.value
   } catch {
     // Non-critical
   }
@@ -249,27 +247,19 @@ async function restoreExistingGuess() {
   if (!proverb.value) return
 
   const userId = await getSessionUserId()
+  if (!userId) return
   let previousOptionId: string | null = null
 
-  if (userId) {
-    const { data } = await client
-      .from('guesses')
-      .select('selected_option, is_correct')
-      .eq('proverb_id', proverb.value.id)
-      .eq('user_id', userId)
-      .maybeSingle()
+  const { data } = await client
+    .from('guesses')
+    .select('selected_option, is_correct')
+    .eq('proverb_id', proverb.value.id)
+    .eq('user_id', userId)
+    .maybeSingle()
 
-    if (data?.selected_option) {
-      previousOptionId = data.selected_option
-      result.value = data.is_correct ? 'correct' : 'wrong'
-    }
-  } else {
-    const anonGuess = getAnonGuesses()[proverb.value.id]
-    if (anonGuess) {
-      previousOptionId = anonGuess
-      const picked = proverb.value.guess_options.find(o => o.id === anonGuess)
-      result.value = picked?.is_correct ? 'correct' : 'wrong'
-    }
+  if (data?.selected_option) {
+    previousOptionId = data.selected_option
+    result.value = data.is_correct ? 'correct' : 'wrong'
   }
 
   if (!previousOptionId) return
@@ -282,6 +272,12 @@ async function restoreExistingGuess() {
 async function submitGuess(optionId: string) {
   if (!proverb.value || hasAnswered.value || answering.value) return
 
+  const userId = await getSessionUserId()
+  if (!userId) {
+    requireAuth('Sign in to submit an answer and see your progress.')
+    return
+  }
+
   answering.value = true
   selectedOption.value = optionId
 
@@ -289,20 +285,25 @@ async function submitGuess(optionId: string) {
   const isCorrect = !!picked?.is_correct
   result.value = isCorrect ? 'correct' : 'wrong'
 
-  const userId = await getSessionUserId()
+  const { error: insertError } = await client.from('guesses').insert({
+    proverb_id: proverb.value.id,
+    selected_option: optionId,
+    is_correct: isCorrect
+  })
 
-  if (userId) {
-    const { error: insertError } = await client.from('guesses').insert({
-      proverb_id: proverb.value.id,
-      selected_option: optionId,
-      is_correct: isCorrect
-    })
+  if (insertError) {
+    console.error('Failed to save guess:', insertError.message)
+    const { data: existing } = await client
+      .from('guesses')
+      .select('selected_option, is_correct')
+      .eq('proverb_id', proverb.value.id)
+      .eq('user_id', userId)
+      .maybeSingle()
 
-    if (insertError) {
-      console.error('Failed to save guess:', insertError.message)
+    if (existing?.selected_option) {
+      selectedOption.value = existing.selected_option
+      result.value = existing.is_correct ? 'correct' : 'wrong'
     }
-  } else {
-    setAnonGuess(proverb.value.id, optionId)
   }
 
   hasAnswered.value = true
@@ -313,6 +314,13 @@ async function submitGuess(optionId: string) {
 watch(() => proverb.value?.id, async () => {
   resetGuessState()
   if (!proverb.value) return
+  setupShuffledOptions()
+  await restoreExistingGuess()
+})
+
+watch(() => user.value?.id, async () => {
+  if (!proverb.value) return
+  resetGuessState()
   setupShuffledOptions()
   await restoreExistingGuess()
 })
@@ -424,6 +432,7 @@ async function removeProverb() {
                 size="xs"
                 class="gap-1.5 cursor-pointer"
                 :loading="navigatingRandom"
+                :disabled="!isAuthenticated"
                 @click="goToRandomProverb"
               >
                 <UKbd value="→" />
@@ -452,6 +461,14 @@ async function removeProverb() {
         <UCard class="max-w-2xl mx-auto">
           <div class="space-y-4">
             <p class="text-sm font-medium">What does this proverb actually mean?</p>
+            <UAlert
+              v-if="!isAuthenticated"
+              color="neutral"
+              variant="subtle"
+              icon="i-lucide-lock"
+              title="Sign in to answer"
+              description="Answers and progress are saved globally only for signed-in users."
+            />
 
             <div v-if="!hasAnswered" class="grid gap-3">
               <UButton
@@ -463,7 +480,7 @@ async function removeProverb() {
                 block
                 class="text-left justify-start h-auto py-3"
                 :loading="answering && selectedOption === option.id"
-                :disabled="answering"
+                :disabled="answering || !isAuthenticated"
                 @click="submitGuess(option.id)"
               >
                 <span class="w-full text-left whitespace-normal break-words leading-snug">
@@ -542,7 +559,8 @@ async function removeProverb() {
         <div v-if="hasAnswered" class="md:hidden max-w-2xl mx-auto">
           <div class="space-y-2">
             <p class="text-xs text-dimmed text-center">
-              Swipe left to go back • Swipe right for next random
+              Swipe left to go back
+              <span v-if="isAuthenticated"> • Swipe right for next random</span>
             </p>
             <div class="flex flex-row items-center justify-between gap-2">
               <UButton
@@ -561,6 +579,7 @@ async function removeProverb() {
                 size="sm"
                 class="gap-1.5"
                 :loading="navigatingRandom"
+                :disabled="!isAuthenticated"
                 @click="goToRandomProverb"
               >
                 <UKbd value="→" />
