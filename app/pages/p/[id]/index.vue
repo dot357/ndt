@@ -12,6 +12,7 @@ const showReportModal = ref(false)
 const showRemoveModal = ref(false)
 const removing = ref(false)
 const removeError = ref<string | null>(null)
+const navigatingRandom = ref(false)
 const selectedOption = ref<string | null>(null)
 const result = ref<'correct' | 'wrong' | null>(null)
 const answering = ref(false)
@@ -64,6 +65,82 @@ function setAnonGuess(proverbId: string, optionId: string) {
 async function getSessionUserId(): Promise<string | null> {
   const { data: { session } } = await client.auth.getSession()
   return session?.user?.id ?? null
+}
+
+function isDesktopClient() {
+  if (import.meta.server) return false
+  return window.matchMedia('(min-width: 1024px) and (pointer: fine)').matches
+}
+
+function canUseKeyboardShortcut() {
+  if (!isDesktopClient()) return false
+  if (showReportModal.value || showRemoveModal.value) return false
+
+  const active = document.activeElement as HTMLElement | null
+  if (!active) return true
+
+  const tag = active.tagName
+  return tag !== 'INPUT' && tag !== 'TEXTAREA' && !active.isContentEditable
+}
+
+async function goToRandomProverb() {
+  if (!proverb.value || navigatingRandom.value) return
+
+  navigatingRandom.value = true
+
+  try {
+    const { data, error: fetchError } = await client
+      .from('proverbs')
+      .select('id')
+      .eq('status', 'published')
+      .neq('id', proverb.value.id)
+      .limit(100)
+
+    if (fetchError) throw fetchError
+
+    const ids = (data || []).map((row: { id: string }) => row.id)
+
+    if (ids.length === 0) {
+      toast.add({
+        title: 'No other proverb found',
+        description: 'This is the only published proverb right now.',
+        color: 'neutral',
+        icon: 'i-lucide-info'
+      })
+      return
+    }
+
+    const randomId = ids[Math.floor(Math.random() * ids.length)]
+    await navigateTo(`/p/${randomId}`)
+  } catch (e: any) {
+    toast.add({
+      title: 'Could not open next proverb',
+      description: e?.message || 'Please try again.',
+      color: 'error',
+      icon: 'i-lucide-alert-circle'
+    })
+  } finally {
+    navigatingRandom.value = false
+  }
+}
+
+function goBack() {
+  if (import.meta.server) return
+  window.history.back()
+}
+
+function handleKeyboardNavigation(event: KeyboardEvent) {
+  if (event.defaultPrevented) return
+  if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return
+  if (!canUseKeyboardShortcut()) return
+
+  if (event.key === 'ArrowRight') {
+    event.preventDefault()
+    void goToRandomProverb()
+  } else if (event.key === 'ArrowLeft') {
+    event.preventDefault()
+    goBack()
+  }
 }
 
 function resetGuessState() {
@@ -165,6 +242,14 @@ watch(() => proverb.value?.id, async () => {
   await restoreExistingGuess()
 })
 
+onMounted(() => {
+  window.addEventListener('keydown', handleKeyboardNavigation)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleKeyboardNavigation)
+})
+
 function closeRemoveModal() {
   if (removing.value) return
   showRemoveModal.value = false
@@ -237,24 +322,54 @@ async function removeProverb() {
       </div>
 
       <!-- Proverb detail -->
-      <div v-else class="max-w-2xl mx-auto space-y-6">
-        <div class="flex items-center gap-3 flex-wrap">
+      <div v-else class="max-w-7xl  mx-auto space-y-6">
+        <!-- Desktop shortcuts -->
+        <UCard variant="soft" class="border-primary/20 bg-primary/5">
+          <div class="flex items-center justify-between gap-3 flex-wrap text-sm">
+            <span class="font-medium text-primary">Desktop shortcuts</span>
+            <div class="flex items-center gap-3 text-dimmed">
+              <UButton
+                variant="ghost"
+                color="neutral"
+                size="xs"
+                class="gap-1.5 cursor-pointer"
+                @click="goBack"
+              >
+                <UKbd value="←" />
+                <span>Go back</span>
+              </UButton>
+              <UButton
+                variant="ghost"
+                color="neutral"
+                size="xs"
+                class="gap-1.5 cursor-pointer"
+                :loading="navigatingRandom"
+                @click="goToRandomProverb"
+              >
+                <UKbd value="→" />
+                <span>Next random</span>
+              </UButton>
+            </div>
+          </div>
+        </UCard>
+
+        <div class="flex items-center justify-center gap-3 flex-wrap">
           <CountryBadge :country-code="proverb.country_code" :language-name="proverb.language_name" />
           <span class="text-sm text-dimmed">{{ timeAgo }}</span>
         </div>
 
-        <h1 class="text-2xl sm:text-3xl font-bold text-highlighted leading-snug">
+        <h1 class="text-2xl sm:text-4xl font-bold text-highlighted leading-snug text-center">
           "{{ proverb.original_text }}"
         </h1>
 
-        <UCard variant="subtle">
+        <UCard variant="subtle" class="max-w-2xl mx-auto">
           <div class="space-y-1">
             <p class="text-xs font-medium text-muted uppercase tracking-wide">Literal Translation</p>
             <p class="text-lg">"{{ proverb.literal_text }}"</p>
           </div>
         </UCard>
 
-        <UCard>
+        <UCard class="max-w-2xl mx-auto">
           <div class="space-y-4">
             <p class="text-sm font-medium">What does this proverb actually mean?</p>
 
@@ -342,7 +457,7 @@ async function removeProverb() {
         </UCard>
 
         <!-- Reactions -->
-        <div class="pt-4 border-t border-default space-y-3">
+        <div class="pt-4 border-t border-default space-y-3 max-w-2xl mx-auto">
           <EmojiReactions :proverb-id="proverb.id" />
 
           <div class="flex items-center justify-between gap-3">

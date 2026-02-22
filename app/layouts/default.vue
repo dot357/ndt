@@ -10,6 +10,14 @@ const navLinks = [
 ]
 
 const showAuthModal = ref(false)
+const accountMenuItems = computed(() => [[
+  {
+    label: 'Sign out',
+    icon: 'i-lucide-log-out',
+    color: 'error',
+    onSelect: () => { void signOut() }
+  }
+]])
 
 async function signOut() {
   await client.auth.signOut()
@@ -56,14 +64,16 @@ provide('showAuthModal', showAuthModal)
             label="Submit"
             size="sm"
           />
-          <UButton
-            :label="user.email || 'Account'"
-            icon="i-lucide-user"
-            variant="ghost"
-            color="neutral"
-            size="sm"
-            @click="signOut"
-          />
+          <UDropdownMenu :items="accountMenuItems">
+            <UButton
+              :label="user.email || 'Account'"
+              icon="i-lucide-user"
+              trailing-icon="i-lucide-chevron-down"
+              variant="ghost"
+              color="neutral"
+              size="sm"
+            />
+          </UDropdownMenu>
         </template>
         <template v-else>
           <UButton

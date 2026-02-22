@@ -2,6 +2,7 @@ interface GuessOption {
   id: string
   option_text: string
   is_correct: boolean
+  sort_order?: number
 }
 
 interface GuessProverb {
@@ -55,6 +56,27 @@ export function useGuess() {
   const distribution = ref<DistributionItem[]>([])
   const totalProverbs = ref(0)
   const answeredCount = ref(0)
+
+  function normalizeGuessOptions(options: GuessOption[]): GuessOption[] {
+    if (!options.length) return []
+
+    const withSort = options.filter(o => typeof o.sort_order === 'number')
+    if (withSort.length === options.length) {
+      const bySort = new Map<number, GuessOption>()
+      for (const option of [...withSort].sort((a, b) => (a.sort_order as number) - (b.sort_order as number))) {
+        if (!bySort.has(option.sort_order as number)) {
+          bySort.set(option.sort_order as number, option)
+        }
+      }
+      return Array.from(bySort.values())
+    }
+
+    const byId = new Map<string, GuessOption>()
+    for (const option of options) {
+      if (!byId.has(option.id)) byId.set(option.id, option)
+    }
+    return Array.from(byId.values())
+  }
 
   async function getSessionUserId(): Promise<string | null> {
     const { data: { session } } = await client.auth.getSession()
@@ -119,7 +141,7 @@ export function useGuess() {
       proverb.value = random
 
       // Shuffle options
-      options.value = [...random.guess_options].sort(() => Math.random() - 0.5)
+      options.value = normalizeGuessOptions(random.guess_options).sort(() => Math.random() - 0.5)
     } catch (e: any) {
       error.value = e.message || 'Failed to load proverb'
     } finally {
