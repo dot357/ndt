@@ -29,80 +29,87 @@ provide('showAuthModal', showAuthModal)
 
 <template>
   <div class="min-h-screen flex flex-col ">
-    <UHeader class="overflow-hidden">
-      <template #left>
+    <div class="hidden sm:block">
+      <UHeader class="overflow-hidden">
+        <template #left>
 
-        <div class="relative -z-1 opacity-40">
-          <div class="absolute left-12 -top-12">
-            <Logo class="text-primary size-24" />
+          <div class="relative -z-1 opacity-40">
+            <div class="absolute left-12 -top-12">
+              <Logo class="text-primary size-24" />
+            </div>
           </div>
-        </div>
-        <NuxtLink to="/" class="flex items-center gap-2 py-4">
+          <NuxtLink to="/" class="flex items-center gap-2 py-4">
 
-          <span class="font-bold text-lg tracking-tight">No Direct Translation</span>
-        </NuxtLink>
+            <span class="font-bold text-lg tracking-tight">No Direct Translation</span>
+          </NuxtLink>
 
-        <UNavigationMenu :items="navLinks" class="hidden sm:flex" />
-      </template>
+          <UNavigationMenu :items="navLinks" class="hidden sm:flex" />
+        </template>
 
-      <template #right>
-        <UColorModeButton />
+        <template #right>
+          <UColorModeButton class="hidden sm:inline-flex" />
 
-        <template v-if="user">
-          <UButton
-            v-if="isAdminOrMod"
-            to="/manage"
-            icon="i-lucide-shield"
-            label="Manage"
-            variant="soft"
-            color="neutral"
-            size="sm"
-          />
-          <UButton
-            to="/submit"
-            icon="i-lucide-plus"
-            label="Submit"
-            size="sm"
-          />
-          <UDropdownMenu :items="accountMenuItems">
+          <template v-if="user">
             <UButton
-              :label="user.email || 'Account'"
-              icon="i-lucide-user"
-              trailing-icon="i-lucide-chevron-down"
-              variant="ghost"
+              v-if="isAdminOrMod"
+              to="/manage"
+              icon="i-lucide-shield"
+              label="Manage"
+              variant="soft"
               color="neutral"
               size="sm"
+              class="hidden sm:inline-flex"
             />
-          </UDropdownMenu>
+            <UButton
+              to="/submit"
+              icon="i-lucide-plus"
+              label="Submit"
+              size="sm"
+              class="hidden sm:inline-flex"
+            />
+            <UDropdownMenu :items="accountMenuItems" class="hidden sm:inline-flex">
+              <UButton
+                :label="user.email || 'Account'"
+                icon="i-lucide-user"
+                trailing-icon="i-lucide-chevron-down"
+                variant="ghost"
+                color="neutral"
+                size="sm"
+              />
+            </UDropdownMenu>
+          </template>
+          <template v-else>
+            <UButton
+              label="Sign in"
+              icon="i-lucide-log-in"
+              variant="soft"
+              size="sm"
+              class="hidden sm:inline-flex"
+              @click="showAuthModal = true"
+            />
+          </template>
         </template>
-        <template v-else>
-          <UButton
-            label="Sign in"
-            icon="i-lucide-log-in"
-            variant="soft"
-            size="sm"
-            @click="showAuthModal = true"
-          />
-        </template>
-      </template>
-    </UHeader>
+      </UHeader>
+    </div>
 
-    <UMain class="flex-1">
+    <UMain class="flex-1 pb-20 sm:pb-0">
       <slot />
     </UMain>
 
-    <UFooter>
+    <MobileBottomNav
+      :items="navLinks"
+      :is-authenticated="!!user"
+      :is-admin-or-mod="isAdminOrMod"
+      @sign-out="signOut"
+      @sign-in="showAuthModal = true"
+    />
+
+    <UFooter class="pb-24 sm:pb-0">
       <template #left>
         <Logo class="text-primary size-6" />
         <p class="text-sm text-muted">
           NDT — No Direct Translation · © {{ new Date().getFullYear() }}
         </p>
-      </template>
-      <template #right>
-        <UNavigationMenu
-          :items="navLinks"
-          class="sm:hidden"
-        />
       </template>
     </UFooter>
 

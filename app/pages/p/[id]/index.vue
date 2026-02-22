@@ -13,6 +13,7 @@ const showRemoveModal = ref(false)
 const removing = ref(false)
 const removeError = ref<string | null>(null)
 const navigatingRandom = ref(false)
+const sharing = ref(false)
 const selectedOption = ref<string | null>(null)
 const result = ref<'correct' | 'wrong' | null>(null)
 const answering = ref(false)
@@ -40,9 +41,16 @@ const timeAgo = computed(() => {
 
 watchEffect(() => {
   if (proverb.value) {
+    const shareTitle = `"${proverb.value.original_text}" — NDT`
+    const shareDescription = `Literally: "${proverb.value.literal_text}" — A ${proverb.value.language_name} proverb`
+
     useSeoMeta({
-      title: `"${proverb.value.original_text}" — NDT`,
-      description: `Literally: "${proverb.value.literal_text}" — A ${proverb.value.language_name} proverb`
+      title: shareTitle,
+      description: shareDescription,
+      ogTitle: shareTitle,
+      ogDescription: shareDescription,
+      twitterTitle: shareTitle,
+      twitterDescription: shareDescription
     })
   }
 })
@@ -127,6 +135,40 @@ async function goToRandomProverb() {
 function goBack() {
   if (import.meta.server) return
   window.history.back()
+}
+
+async function shareProverb() {
+  if (!proverb.value || sharing.value || import.meta.server) return
+
+  sharing.value = true
+  const url = window.location.href
+  const title = `"${proverb.value.original_text}" — NDT`
+  const text = `Literally: "${proverb.value.literal_text}" — A ${proverb.value.language_name} proverb`
+
+  try {
+    if (navigator.share) {
+      await navigator.share({ title, text, url })
+    } else if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(url)
+      toast.add({
+        title: 'Link copied',
+        description: 'Proverb link copied to clipboard.',
+        color: 'success',
+        icon: 'i-lucide-check-circle'
+      })
+    } else {
+      toast.add({
+        title: 'Share not supported',
+        description: 'Your browser does not support share or clipboard.',
+        color: 'neutral',
+        icon: 'i-lucide-info'
+      })
+    }
+  } catch {
+    // User cancelled share or clipboard failed
+  } finally {
+    sharing.value = false
+  }
 }
 
 function handleKeyboardNavigation(event: KeyboardEvent) {
@@ -324,7 +366,7 @@ async function removeProverb() {
       <!-- Proverb detail -->
       <div v-else class="max-w-7xl  mx-auto space-y-6">
         <!-- Desktop shortcuts -->
-        <UCard variant="soft" class="border-primary/20 bg-primary/5">
+        <UCard variant="soft" class="hidden md:block border-primary/20 bg-primary/5">
           <div class="flex items-center justify-between gap-3 flex-wrap text-sm">
             <span class="font-medium text-primary">Desktop shortcuts</span>
             <div class="flex items-center gap-3 text-dimmed">
@@ -456,16 +498,53 @@ async function removeProverb() {
           </div>
         </UCard>
 
+        <div v-if="hasAnswered" class="md:hidden max-w-2xl mx-auto">
+          <div class="flex flex-row items-center justify-between gap-2">
+            <UButton
+              variant="ghost"
+              color="neutral"
+              size="sm"
+              class="gap-1.5"
+              @click="goBack"
+            >
+              <UKbd value="←" />
+              <span>Go back</span>
+            </UButton>
+            <UButton
+              variant="ghost"
+              color="neutral"
+              size="sm"
+              class="gap-1.5"
+              :loading="navigatingRandom"
+              @click="goToRandomProverb"
+            >
+              <UKbd value="→" />
+              <span>Next random</span>
+            </UButton>
+          </div>
+        </div>
+
         <!-- Reactions -->
         <div class="pt-4 border-t border-default space-y-3 max-w-2xl mx-auto">
-          <EmojiReactions :proverb-id="proverb.id" />
-
           <div class="flex items-center justify-between gap-3">
+            <EmojiReactions :proverb-id="proverb.id" />
+            <UButton
+              label="Share"
+              icon="i-lucide-share-2"
+              variant="ghost"
+              color="neutral"
+              size="xs"
+              :loading="sharing"
+              @click="shareProverb"
+            />
+          </div>
+
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <span v-if="proverb.profiles?.display_name" class="text-sm text-muted">
               Submitted by {{ proverb.profiles.display_name }}
             </span>
 
-            <div class="flex items-center gap-2">
+            <div class="flex flex-row items-center justify-between sm:justify-start gap-2 w-full sm:w-auto">
               <UButton
                 v-if="isAdmin"
                 label="Remove proverb"
