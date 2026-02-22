@@ -66,82 +66,118 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <form class="space-y-6" @submit.prevent="handleSubmit">
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-      <UFormField label="Country" required>
-        <USelectMenu
-          v-model="form.country_code"
-          :items="countryOptions"
-          value-key="value"
-          placeholder="Search for a country..."
-        />
-      </UFormField>
+  <form class="space-y-5" @submit.prevent="handleSubmit">
+    <UCard class="border border-default/70 shadow-sm">
+      <template #header>
+        <div class="space-y-1">
+          <p class="text-sm font-semibold tracking-wide uppercase text-muted">Proverb details</p>
+          <p class="text-sm text-muted">Add the original saying and the literal translation.</p>
+        </div>
+      </template>
 
-      <UFormField label="Language" required>
-        <USelectMenu
-          v-model="form.language_name"
-          :items="languageOptions"
-          value-key="value"
-          placeholder="Search for a language..."
-          create-item
-        />
-      </UFormField>
+      <div class="space-y-5">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <UFormField label="Country" required>
+            <USelectMenu
+              v-model="form.country_code"
+              :items="countryOptions"
+              value-key="value"
+              placeholder="Search for a country..."
+              class="w-full"
+            />
+          </UFormField>
+
+          <UFormField label="Language" required>
+            <USelectMenu
+              v-model="form.language_name"
+              :items="languageOptions"
+              value-key="value"
+              placeholder="Search for a language..."
+              class="w-full"
+              create-item
+            />
+          </UFormField>
+        </div>
+
+        <UFormField label="Original Proverb" required>
+          <UTextarea
+            v-model="form.original_text"
+            placeholder="The proverb in its original language"
+            :rows="3"
+            class="w-full"
+          />
+        </UFormField>
+
+        <UFormField label="Literal Translation" required>
+          <UTextarea
+            v-model="form.literal_text"
+            placeholder="What it literally translates to in English (the funny part!)"
+            :rows="3"
+            class="w-full"
+          />
+        </UFormField>
+      </div>
+    </UCard>
+
+    <UCard class="border border-default/70 shadow-sm">
+      <template #header>
+        <div class="space-y-1">
+          <p class="text-sm font-semibold tracking-wide uppercase text-muted">Guess game options</p>
+          <p class="text-sm text-muted">One real meaning and three believable fakes.</p>
+        </div>
+      </template>
+
+      <div class="space-y-5">
+        <UFormField label="Actual Meaning (correct answer)" required>
+          <UTextarea
+            v-model="form.meaning_text"
+            placeholder="What the proverb actually means"
+            :rows="3"
+            class="w-full"
+          />
+        </UFormField>
+
+        <div class="rounded-lg border border-dashed border-default p-3 text-sm text-muted">
+          Add 3 fake meanings so players can guess. Make them plausible but wrong.
+        </div>
+
+        <div class="space-y-3">
+          <UFormField label="Wrong meaning #1" required>
+            <UInput v-model="form.wrong_option_1" placeholder="A plausible but wrong meaning" class="w-full" />
+          </UFormField>
+
+          <UFormField label="Wrong meaning #2" required>
+            <UInput v-model="form.wrong_option_2" placeholder="Another wrong meaning" class="w-full" />
+          </UFormField>
+
+          <UFormField label="Wrong meaning #3" required>
+            <UInput v-model="form.wrong_option_3" placeholder="One more wrong meaning" class="w-full" />
+          </UFormField>
+        </div>
+      </div>
+    </UCard>
+
+    <div class="rounded-xl border border-default/70 bg-elevated/40 p-4 space-y-3">
+      <div class="flex items-center justify-between text-sm">
+        <span class="text-muted">Ready to submit</span>
+        <span :class="isValid ? 'text-success font-medium' : 'text-muted'">
+          {{ isValid ? 'All required fields complete' : 'Please fill all required fields' }}
+        </span>
+      </div>
+
+      <p v-if="error" class="text-sm text-red-500">
+        {{ error }}
+      </p>
+
+      <UButton
+        type="submit"
+        label="Submit Proverb"
+        icon="i-lucide-send"
+        size="lg"
+        block
+        :loading="loading"
+        :disabled="!isValid"
+      />
     </div>
-
-    <UFormField label="Original Proverb" required>
-      <UTextarea
-        v-model="form.original_text"
-        placeholder="The proverb in its original language"
-        :rows="2"
-      />
-    </UFormField>
-
-    <UFormField label="Literal Translation" required>
-      <UTextarea
-        v-model="form.literal_text"
-        placeholder="What it literally translates to in English (the funny part!)"
-        :rows="2"
-      />
-    </UFormField>
-
-    <USeparator label="Guess Game Options" />
-
-    <UFormField label="Actual Meaning (correct answer)" required>
-      <UTextarea
-        v-model="form.meaning_text"
-        placeholder="What the proverb actually means"
-        :rows="2"
-      />
-    </UFormField>
-
-    <p class="text-sm text-muted">
-      Add 3 fake meanings so players can guess. Make them plausible but wrong!
-    </p>
-
-    <UFormField label="Wrong meaning #1" required>
-      <UInput v-model="form.wrong_option_1" placeholder="A plausible but wrong meaning" />
-    </UFormField>
-
-    <UFormField label="Wrong meaning #2" required>
-      <UInput v-model="form.wrong_option_2" placeholder="Another wrong meaning" />
-    </UFormField>
-
-    <UFormField label="Wrong meaning #3" required>
-      <UInput v-model="form.wrong_option_3" placeholder="One more wrong meaning" />
-    </UFormField>
-
-    <p v-if="error" class="text-sm text-red-500">
-      {{ error }}
-    </p>
-
-    <UButton
-      type="submit"
-      label="Submit Proverb"
-      icon="i-lucide-send"
-      size="lg"
-      block
-      :loading="loading"
-      :disabled="!isValid"
-    />
   </form>
 </template>
