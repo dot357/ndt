@@ -41,13 +41,18 @@ export default defineEventHandler(async (event) => {
     return { ok: true, consumed: false }
   }
 
+  const updates: Record<string, any> = {
+    terms_accepted_at: consent.terms_accepted_at,
+    privacy_accepted_at: consent.privacy_accepted_at
+  }
+  // Never downgrade opt-in during sign-in flows; only set it when explicitly true.
+  if (consent.marketing_updates_opt_in) {
+    updates.marketing_updates_opt_in = true
+  }
+
   const { error: updateError } = await client
     .from('profiles')
-    .update({
-      marketing_updates_opt_in: !!consent.marketing_updates_opt_in,
-      terms_accepted_at: consent.terms_accepted_at,
-      privacy_accepted_at: consent.privacy_accepted_at
-    })
+    .update(updates)
     .eq('id', userId)
 
   if (updateError) {

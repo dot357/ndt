@@ -86,9 +86,23 @@ async function persistPendingConsent() {
 
   isSavingConsent.value = true
   try {
+    const body: {
+      marketing_updates_opt_in?: boolean
+      terms_accepted_at?: string | null
+      privacy_accepted_at?: string | null
+    } = {
+      terms_accepted_at: parsed.terms_accepted_at,
+      privacy_accepted_at: parsed.privacy_accepted_at
+    }
+
+    // Never downgrade opt-in during sign-in flows; profile settings handles explicit opt-out.
+    if (parsed.marketing_updates_opt_in) {
+      body.marketing_updates_opt_in = true
+    }
+
     await $fetch('/api/profile/preferences', {
       method: 'POST',
-      body: parsed
+      body
     })
     localStorage.removeItem(pendingConsentStorageKey)
   } catch {
