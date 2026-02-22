@@ -41,6 +41,11 @@
 - Remaining hardening opportunity: configure shared Nitro storage (for example Redis) for globally consistent rate limits across instances and reduce race windows under high concurrency.
 - CAPTCHA is now integrated in monitor mode for high-risk proverb write actions; enforce mode and auth magic-link protection are still pending.
 
+## Reassessment (2026-02-22)
+- High: auth magic-link initiation is still direct client -> Supabase (`app/components/AuthModal.vue`), so it is outside Nuxt API rate-limit/CAPTCHA controls.
+- Medium: enforce-mode misconfiguration gap was found and fixed in `server/utils/captcha.ts` (enforce mode now fails closed if CAPTCHA verification is skipped due to missing/invalid server config).
+- Low: monitor-mode logging currently uses server logs only (`console.warn`); no centralized metrics sink yet.
+
 ## Progress Log
 - 2026-02-21: Checklist created.
 - 2026-02-21: Added `supabase/migrations/005_security_hardening.sql` with schema alignment, role helper functions, RLS policies, and guard triggers.
@@ -64,3 +69,6 @@
 - 2026-02-22: Implemented Turnstile CAPTCHA monitor mode (`server/utils/captcha.ts`, `app/composables/useCaptcha.ts`) and wired `captchaToken` on submit/report/reactions/guess API flows.
 - 2026-02-22: Added CAPTCHA runtime config in `nuxt.config.ts` and env template entries in `.env.example`.
 - 2026-02-22: Ran `pnpm typecheck` and `pnpm build` after CAPTCHA integration; both passed.
+- 2026-02-22: Reassessed security posture; confirmed only remaining direct client Supabase path is magic-link initiation in `app/components/AuthModal.vue`.
+- 2026-02-22: Fixed CAPTCHA enforce-mode fail-open edge case in `server/utils/captcha.ts`; if verification is skipped due to misconfiguration, enforce mode now returns server error instead of allowing writes.
+- 2026-02-22: Re-ran `pnpm typecheck` after CAPTCHA guard fix; passed.

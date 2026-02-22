@@ -78,7 +78,24 @@ export async function requireCaptcha(input: VerifyCaptchaInput) {
 
   const result = await verifyCaptcha(input)
 
-  if (result.ok || result.skipped) return
+  if (result.ok) return
+
+  if (result.skipped) {
+    if (mode === 'enforce') {
+      throw createError({
+        statusCode: 500,
+        statusMessage: 'Internal Server Error',
+        message: 'CAPTCHA is misconfigured on the server.'
+      })
+    }
+
+    console.warn('[captcha-monitor]', {
+      action: input.action,
+      reason: result.reason,
+      ip: getRequestIP(input.event, { xForwardedFor: true }) || 'unknown-ip'
+    })
+    return
+  }
 
   if (mode === 'enforce') {
     throw createError({
