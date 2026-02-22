@@ -43,7 +43,10 @@ async function sendMagicLink() {
       method: 'POST',
       body: {
         email: email.value,
-        captchaToken
+        captchaToken,
+        marketing_updates_opt_in: wantsMarketingUpdates.value,
+        terms_accepted_at: new Date().toISOString(),
+        privacy_accepted_at: new Date().toISOString()
       }
     })
 

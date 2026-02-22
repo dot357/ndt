@@ -1,10 +1,15 @@
 <script setup lang="ts">
 useHead({
   meta: [
-    { name: 'viewport', content: 'width=device-width, initial-scale=1' }
+    { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+    { name: 'theme-color', content: '#ffffff' }
   ],
   link: [
-    { rel: 'icon', href: '/favicon.ico' }
+    { rel: 'icon', type: 'image/png', sizes: '96x96', href: '/favicon-96x96.png?v=2' },
+    { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg?v=2' },
+    { rel: 'shortcut icon', href: '/favicon.ico?v=2' },
+    { rel: 'apple-touch-icon', sizes: '180x180', href: '/apple-touch-icon.png?v=2' },
+    { rel: 'manifest', href: '/site.webmanifest?v=2' }
   ],
   htmlAttrs: {
     lang: 'en'
