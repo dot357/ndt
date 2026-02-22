@@ -97,17 +97,37 @@ function canUseSwipeNavigation() {
 
 async function goToRandomProverb() {
   if (!proverb.value || navigatingRandom.value) return
-  if (!requireAuth('Sign in to open the next random proverb.')) return
 
   navigatingRandom.value = true
 
   try {
-    const { data, error: fetchError } = await client
+    const userId = user.value?.id
+    let query = client
       .from('proverbs')
       .select('id')
       .eq('status', 'published')
-      .neq('id', proverb.value.id)
-      .limit(100)
+      .limit(200)
+
+    if (userId) {
+      const { data: guessedRows, error: guessedError } = await client
+        .from('proverbs')
+        .select('id, guesses!inner(user_id)')
+        .eq('status', 'published')
+        .eq('guesses.user_id', userId)
+
+      if (guessedError) throw guessedError
+
+      const guessedIds = new Set((guessedRows || []).map((row: any) => row.id))
+      guessedIds.add(proverb.value.id)
+
+      if (guessedIds.size > 0) {
+        query = query.not('id', 'in', `(${Array.from(guessedIds).join(',')})`)
+      }
+    } else {
+      query = query.neq('id', proverb.value.id)
+    }
+
+    const { data, error: fetchError } = await query
 
     if (fetchError) throw fetchError
 
@@ -432,7 +452,6 @@ async function removeProverb() {
                 size="xs"
                 class="gap-1.5 cursor-pointer"
                 :loading="navigatingRandom"
-                :disabled="!isAuthenticated"
                 @click="goToRandomProverb"
               >
                 <UKbd value="→" />
@@ -472,13 +491,16 @@ async function removeProverb() {
 
             <div v-if="!hasAnswered" class="grid gap-3">
               <UButton
-                v-for="option in shuffledOptions"
+                v-for="(option, index) in shuffledOptions"
                 :key="option.id"
                 color="neutral"
                 variant="outline"
                 size="lg"
                 block
-                class="text-left justify-start h-auto py-3"
+                :class="[
+                  'text-left justify-start h-auto py-3',
+                  !isAuthenticated && index >= 2 ? 'blur-[3px]' : ''
+                ]"
                 :loading="answering && selectedOption === option.id"
                 :disabled="answering || !isAuthenticated"
                 @click="submitGuess(option.id)"
@@ -560,7 +582,7 @@ async function removeProverb() {
           <div class="space-y-2">
             <p class="text-xs text-dimmed text-center">
               Swipe left to go back
-              <span v-if="isAuthenticated"> • Swipe right for next random</span>
+              • Swipe right for next random
             </p>
             <div class="flex flex-row items-center justify-between gap-2">
               <UButton
@@ -579,7 +601,6 @@ async function removeProverb() {
                 size="sm"
                 class="gap-1.5"
                 :loading="navigatingRandom"
-                :disabled="!isAuthenticated"
                 @click="goToRandomProverb"
               >
                 <UKbd value="→" />
