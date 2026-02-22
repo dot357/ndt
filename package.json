@@ -17,10 +17,12 @@
     "@iconify-json/simple-icons": "^1.2.70",
     "@nuxt/ui": "^4.4.0",
     "@nuxtjs/supabase": "^2.0.4",
+    "hammerjs": "^2.0.8",
     "nuxt": "^4.3.1",
     "tailwindcss": "^4.1.18"
   },
   "devDependencies": {
+    "@types/hammerjs": "^2.0.46",
     "typescript": "^5.9.3",
     "vue-tsc": "^3.2.4"
   },

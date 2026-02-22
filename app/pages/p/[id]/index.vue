@@ -26,6 +26,7 @@ const distribution = ref<Array<{
   pick_percentage: number
 }>>([])
 const shuffledOptions = ref<Array<{ id: string; option_text: string; is_correct: boolean }>>([])
+let hammerManager: HammerManager | null = null
 
 const ANON_PROVERB_GUESSES_KEY = 'ndt_proverb_detail_guesses'
 
@@ -89,6 +90,12 @@ function canUseKeyboardShortcut() {
 
   const tag = active.tagName
   return tag !== 'INPUT' && tag !== 'TEXTAREA' && !active.isContentEditable
+}
+
+function canUseSwipeNavigation() {
+  if (import.meta.server) return false
+  if (showReportModal.value || showRemoveModal.value) return false
+  return window.matchMedia('(pointer: coarse)').matches
 }
 
 async function goToRandomProverb() {
@@ -183,6 +190,32 @@ function handleKeyboardNavigation(event: KeyboardEvent) {
     event.preventDefault()
     goBack()
   }
+}
+
+async function initSwipeNavigation() {
+  if (!canUseSwipeNavigation() || hammerManager) return
+
+  const { default: Hammer } = await import('hammerjs')
+  hammerManager = new Hammer.Manager(document.body, {
+    touchAction: 'pan-y'
+  })
+
+  hammerManager.add(new Hammer.Swipe({
+    direction: Hammer.DIRECTION_HORIZONTAL,
+    threshold: 18,
+    velocity: 0.2
+  }))
+
+  hammerManager.on('swiperight', () => {
+    if (!canUseSwipeNavigation()) return
+   goBack()
+  })
+
+  hammerManager.on('swipeleft', () => {
+    if (!canUseSwipeNavigation()) return
+     void goToRandomProverb()
+
+  })
 }
 
 function resetGuessState() {
@@ -286,10 +319,15 @@ watch(() => proverb.value?.id, async () => {
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeyboardNavigation)
+  void initSwipeNavigation()
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeyboardNavigation)
+  if (hammerManager) {
+    hammerManager.destroy()
+    hammerManager = null
+  }
 })
 
 function closeRemoveModal() {
@@ -400,14 +438,14 @@ async function removeProverb() {
           <span class="text-sm text-dimmed">{{ timeAgo }}</span>
         </div>
 
-        <h1 class="text-2xl sm:text-4xl font-bold text-highlighted leading-snug text-center">
+        <h1 class="text-2xl sm:text-4xl font-bold text-highlighted leading-snug text-center break-words">
           "{{ proverb.original_text }}"
         </h1>
 
         <UCard variant="subtle" class="max-w-2xl mx-auto">
           <div class="space-y-1">
             <p class="text-xs font-medium text-muted uppercase tracking-wide">Literal Translation</p>
-            <p class="text-lg">"{{ proverb.literal_text }}"</p>
+            <p class="text-lg break-words">"{{ proverb.literal_text }}"</p>
           </div>
         </UCard>
 
@@ -419,16 +457,19 @@ async function removeProverb() {
               <UButton
                 v-for="option in shuffledOptions"
                 :key="option.id"
-                :label="option.option_text"
                 color="neutral"
                 variant="outline"
                 size="lg"
                 block
-                class="text-left justify-start"
+                class="text-left justify-start h-auto py-3"
                 :loading="answering && selectedOption === option.id"
                 :disabled="answering"
                 @click="submitGuess(option.id)"
-              />
+              >
+                <span class="w-full text-left whitespace-normal break-words leading-snug">
+                  {{ option.option_text }}
+                </span>
+              </UButton>
             </div>
 
             <div v-else-if="distribution.length > 0" class="grid gap-3">
@@ -474,7 +515,7 @@ async function removeProverb() {
                   <span class="text-sm font-semibold tabular-nums">{{ item.pick_percentage }}%</span>
                 </div>
 
-                <p class="text-sm mb-2">{{ item.option_text }}</p>
+                <p class="text-sm mb-2 break-words">{{ item.option_text }}</p>
 
                 <div class="h-2 rounded-full bg-elevated overflow-hidden">
                   <div
@@ -499,28 +540,33 @@ async function removeProverb() {
         </UCard>
 
         <div v-if="hasAnswered" class="md:hidden max-w-2xl mx-auto">
-          <div class="flex flex-row items-center justify-between gap-2">
-            <UButton
-              variant="ghost"
-              color="neutral"
-              size="sm"
-              class="gap-1.5"
-              @click="goBack"
-            >
-              <UKbd value="←" />
-              <span>Go back</span>
-            </UButton>
-            <UButton
-              variant="ghost"
-              color="neutral"
-              size="sm"
-              class="gap-1.5"
-              :loading="navigatingRandom"
-              @click="goToRandomProverb"
-            >
-              <UKbd value="→" />
-              <span>Next random</span>
-            </UButton>
+          <div class="space-y-2">
+            <p class="text-xs text-dimmed text-center">
+              Swipe left to go back • Swipe right for next random
+            </p>
+            <div class="flex flex-row items-center justify-between gap-2">
+              <UButton
+                variant="subtle"
+                color="neutral"
+                size="sm"
+                class="gap-1.5"
+                @click="goBack"
+              >
+                <UKbd value="←" />
+                <span>Go back</span>
+              </UButton>
+              <UButton
+                variant="subtle"
+                color="neutral"
+                size="sm"
+                class="gap-1.5"
+                :loading="navigatingRandom"
+                @click="goToRandomProverb"
+              >
+                <UKbd value="→" />
+                <span>Next random</span>
+              </UButton>
+            </div>
           </div>
         </div>
 
