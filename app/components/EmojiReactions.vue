@@ -2,6 +2,7 @@
 const props = defineProps<{
   proverbId: string
   compact?: boolean
+  readonly?: boolean
   initialReactions?: { emoji: string; user_id: string }[]
 }>()
 
@@ -13,6 +14,7 @@ const { totalCount, loading, toggleReaction, getCount, hasReacted } = useReactio
 )
 
 function handleClick(emoji: string) {
+  if (props.readonly) return
   if (!user.value) {
     if (showAuthModal) showAuthModal.value = true
     return
@@ -27,15 +29,16 @@ function handleClick(emoji: string) {
       v-for="emoji in REACTION_EMOJIS"
       :key="emoji.key"
       :title="emoji.label"
-      :disabled="loading"
+      :disabled="loading || readonly"
       class="inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-xs transition-all duration-150 cursor-pointer select-none border"
       :class="[
         hasReacted(emoji.key)
           ? 'bg-primary/10 border-primary/30 scale-110'
           : 'bg-transparent border-transparent hover:bg-muted hover:border-default',
-        loading ? 'opacity-50' : ''
+        loading ? 'opacity-50' : '',
+        readonly ? 'pointer-events-none cursor-default' : ''
       ]"
-      @click.stop="handleClick(emoji.key)"
+      @click.stop.prevent="handleClick(emoji.key)"
     >
       <UIcon :name="emoji.icon" class="size-4 shrink-0" />
       <span

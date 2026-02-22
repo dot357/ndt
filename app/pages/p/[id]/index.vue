@@ -578,7 +578,7 @@ async function removeProverb() {
           </div>
         </UCard>
 
-        <div v-if="hasAnswered" class="md:hidden max-w-2xl mx-auto">
+        <div class="md:hidden max-w-2xl mx-auto">
           <div class="space-y-2">
             <p class="text-xs text-dimmed text-center">
               Swipe left to go back
