@@ -1,5 +1,6 @@
 export function useReport(proverbId: string | Ref<string>) {
   const user = useSupabaseUser()
+  const { getToken } = useCaptcha()
 
   const hasReported = ref(false)
   const loading = ref(false)
@@ -38,9 +39,10 @@ export function useReport(proverbId: string | Ref<string>) {
     error.value = null
 
     try {
+      const captchaToken = await getToken('report_proverb')
       await $fetch(`/api/proverbs/${pid}/report`, {
         method: 'POST',
-        body: { reason }
+        body: { reason, captchaToken }
       })
 
       hasReported.value = true

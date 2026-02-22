@@ -14,6 +14,7 @@ interface UseReactionsOptions {
 
 export function useReactions(proverbId: string | Ref<string>, options: UseReactionsOptions = {}) {
   const user = useSupabaseUser()
+  const { getToken } = useCaptcha()
 
   const rawReactions = ref<RawReaction[]>(options.initialReactions ?? [])
   const loading = ref(false)
@@ -78,9 +79,10 @@ export function useReactions(proverbId: string | Ref<string>, options: UseReacti
     }
 
     try {
+      const captchaToken = await getToken('toggle_reaction')
       await $fetch(`/api/proverbs/${pid}/reactions`, {
         method: 'POST',
-        body: { emoji }
+        body: { emoji, captchaToken }
       })
     } catch {
       rawReactions.value = previousRaw

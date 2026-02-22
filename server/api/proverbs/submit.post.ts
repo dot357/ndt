@@ -1,9 +1,11 @@
 import { createError, defineEventHandler, readBody } from 'h3'
 import { serverSupabaseClient } from '#supabase/server'
 import { requireUser } from '../../utils/auth'
+import { requireCaptcha } from '../../utils/captcha'
 import { enforceRateLimit } from '../../utils/rate-limit'
 
 interface SubmitBody {
+  captchaToken?: string
   country_code?: string
   region?: string
   language_name?: string
@@ -24,6 +26,12 @@ export default defineEventHandler(async (event) => {
   })
 
   const body = await readBody<SubmitBody>(event)
+  await requireCaptcha({
+    event,
+    token: body?.captchaToken,
+    action: 'submit_proverb'
+  })
+
   const wrongOptions = body.wrong_options || []
 
   if (!body.country_code || !body.language_name || !body.original_text || !body.literal_text || !body.meaning_text || wrongOptions.length !== 3) {

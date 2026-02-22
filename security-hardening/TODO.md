@@ -27,6 +27,10 @@
 - [x] Fix proverb detail guess submission state handling so failed answer writes do not lock UI as answered.
 - [x] Move leaderboard reads from client Supabase views to a Nuxt server API route.
 - [x] Move play-mode random selection and manage dashboard stats reads to Nuxt server API routes.
+- [x] Add CAPTCHA (reCAPTCHA/Turnstile via provider abstraction) to high-risk write actions (`submit`, `report`, `reactions`, `guess`).
+- [ ] Move auth magic-link initiation behind Nuxt API and protect it with CAPTCHA.
+- [x] Add CAPTCHA monitor-mode telemetry, then enforce-mode thresholds after tuning.
+- [x] Add CAPTCHA env configuration to `.env.example` and deployment docs.
 
 ## Current State
 - DB-layer hardening (migration `005_security_hardening.sql`, RLS, triggers) is complete.
@@ -35,6 +39,7 @@
 - Validation is green for `pnpm typecheck` and `pnpm build`.
 - Lint cannot currently run in this environment because `eslint` is not installed/available (`Command "eslint" not found`).
 - Remaining hardening opportunity: configure shared Nitro storage (for example Redis) for globally consistent rate limits across instances and reduce race windows under high concurrency.
+- CAPTCHA is now integrated in monitor mode for high-risk proverb write actions; enforce mode and auth magic-link protection are still pending.
 
 ## Progress Log
 - 2026-02-21: Checklist created.
@@ -55,3 +60,7 @@
 - 2026-02-22: Re-ran `pnpm typecheck` and `pnpm build` after leaderboard migration; both passed.
 - 2026-02-22: Added `GET /api/play/random` and `GET /api/manage/stats`; migrated `play.vue` and `useManageStats` to server-side fetches.
 - 2026-02-22: Re-ran `pnpm typecheck` and `pnpm build` after play/manage-stats migration; both passed.
+- 2026-02-22: Added `security-hardening/recaptcha-plan.md` with endpoint risk analysis, phased rollout, and implementation checklist for CAPTCHA integration.
+- 2026-02-22: Implemented Turnstile CAPTCHA monitor mode (`server/utils/captcha.ts`, `app/composables/useCaptcha.ts`) and wired `captchaToken` on submit/report/reactions/guess API flows.
+- 2026-02-22: Added CAPTCHA runtime config in `nuxt.config.ts` and env template entries in `.env.example`.
+- 2026-02-22: Ran `pnpm typecheck` and `pnpm build` after CAPTCHA integration; both passed.

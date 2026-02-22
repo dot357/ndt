@@ -18,6 +18,15 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+  runtimeConfig: {
+    captchaProvider: process.env.CAPTCHA_PROVIDER || 'turnstile',
+    captchaSecretKey: process.env.CAPTCHA_SECRET_KEY || '',
+    captchaMode: process.env.CAPTCHA_MODE || 'monitor',
+    public: {
+      captchaSiteKey: process.env.CAPTCHA_SITE_KEY || ''
+    }
+  },
+
   supabase: {
     redirectOptions: {
       login: '/',

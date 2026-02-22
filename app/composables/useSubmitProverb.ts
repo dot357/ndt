@@ -10,6 +10,7 @@ interface ProverbSubmission {
 
 export function useSubmitProverb() {
   const user = useSupabaseUser()
+  const { getToken } = useCaptcha()
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -23,9 +24,13 @@ export function useSubmitProverb() {
     error.value = null
 
     try {
+      const captchaToken = await getToken('submit_proverb')
       const response = await $fetch<{ id: string }>('/api/proverbs/submit', {
         method: 'POST',
-        body: data
+        body: {
+          ...data,
+          captchaToken
+        }
       })
       return response.id
     } catch (e: any) {
