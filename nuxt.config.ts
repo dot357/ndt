@@ -24,7 +24,10 @@ export default defineNuxtConfig({
     captchaMode: process.env.CAPTCHA_MODE || 'monitor',
     authRedirectBaseUrl: process.env.AUTH_REDIRECT_BASE_URL || '',
     public: {
-      captchaSiteKey: process.env.CAPTCHA_SITE_KEY || ''
+      captchaSiteKey: process.env.CAPTCHA_SITE_KEY || '',
+      posthogPublicKey: process.env.POSTHOG_PUBLIC_KEY || '',
+      posthogHost: process.env.POSTHOG_HOST || 'https://eu.i.posthog.com',
+      posthogDefaults: process.env.POSTHOG_DEFAULTS || '2026-01-30'
     }
   },
 

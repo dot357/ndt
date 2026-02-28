@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import posthog from 'posthog-js'
+
 const route = useRoute()
 const proverbId = route.params.id as string
 
@@ -282,7 +284,7 @@ async function submitGuess(optionId: string) {
   result.value = isCorrect ? 'correct' : 'wrong'
 
   try {
-    const response = await $fetch<{ selected_option: string; is_correct: boolean }>(
+    const response = await $fetch<{ selected_option: string; is_correct: boolean; already_existed: boolean }>(
       `/api/proverbs/${proverb.value.id}/guess`,
       {
         method: 'POST',
@@ -292,6 +294,12 @@ async function submitGuess(optionId: string) {
     selectedOption.value = response.selected_option
     result.value = response.is_correct ? 'correct' : 'wrong'
     hasAnswered.value = true
+    posthog.capture('answer_submitted', {
+      proverb_id: proverb.value.id,
+      selected_option_id: response.selected_option,
+      is_correct: response.is_correct,
+      already_existed: response.already_existed
+    })
     await fetchDistribution()
   } catch (e: any) {
     console.error('Failed to save guess:', e?.data?.message || e?.message)

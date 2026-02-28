@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import posthog from 'posthog-js'
+
 useSeoMeta({
   title: 'Play — NDT',
   description: 'Redirecting to a random unanswered proverb.'
@@ -8,11 +10,23 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 
 async function redirectToRandomUnansweredProverb() {
+  posthog.capture('play_requested')
+
   try {
     const response = await $fetch<{ id: string | null }>('/api/play/random')
-    if (!response.id) return
+    if (!response.id) {
+      posthog.capture('play_unavailable')
+      return
+    }
+
+    posthog.capture('play_started', {
+      proverb_id: response.id
+    })
     await navigateTo(`/p/${response.id}`, { replace: true })
   } catch (e: any) {
+    posthog.capture('play_request_failed', {
+      message: e?.data?.message || e?.message || 'unknown_error'
+    })
     error.value = e?.data?.message || e?.message || 'Could not load a playable proverb.'
   } finally {
     loading.value = false

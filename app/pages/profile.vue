@@ -70,6 +70,20 @@ async function savePreferences() {
       .eq('id', uid)
 
     if (updateError) throw updateError
+
+    if (import.meta.client) {
+      const authUser = user.value as any
+      const userId = authUser?.id || authUser?.sub || null
+      const email = authUser?.email || null
+      window.dispatchEvent(new CustomEvent('ndt:marketing-consent-changed', {
+        detail: {
+          optedIn: marketingUpdatesOptIn.value,
+          userId,
+          email
+        }
+      }))
+    }
+
     success.value = 'Preferences saved.'
   } catch (err: any) {
     error.value = err?.message || 'Unable to save preferences.'
