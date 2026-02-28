@@ -18,6 +18,7 @@ const selectedOption = ref<string | null>(null)
 const result = ref<'correct' | 'wrong' | null>(null)
 const answering = ref(false)
 const hasAnswered = ref(false)
+const hydratingAnswers = ref(true)
 const distribution = ref<Array<{
   option_id: string
   option_text: string
@@ -26,6 +27,7 @@ const distribution = ref<Array<{
   pick_percentage: number
 }>>([])
 const shuffledOptions = ref<Array<{ id: string; option_text: string; is_correct: boolean }>>([])
+const answerHydrationRun = ref(0)
 let hammerManager: HammerManager | null = null
 const isAuthenticated = computed(() => !!user.value)
 const currentUserId = computed(() => (user.value as any)?.id || (user.value as any)?.sub || null)
@@ -204,6 +206,34 @@ function setupShuffledOptions() {
     .sort(() => Math.random() - 0.5)
 }
 
+function revealStyle(index: number) {
+  return {
+    animationDelay: `${index * 70}ms`
+  }
+}
+
+function getDistributionCardClass(item: {
+  option_id: string
+  is_correct: boolean
+}) {
+  if (hydratingAnswers.value) return 'border-default bg-default'
+
+  if (item.is_correct) return 'border-green-500/50 bg-green-500/5'
+  if (item.option_id === selectedOption.value) return 'border-red-500/50 bg-red-500/5'
+  return 'border-default bg-default'
+}
+
+function getDistributionBarClass(item: {
+  option_id: string
+  is_correct: boolean
+}) {
+  if (hydratingAnswers.value) return 'bg-(--ui-border-accented)'
+
+  if (item.is_correct) return 'bg-green-500'
+  if (item.option_id === selectedOption.value) return 'bg-red-500'
+  return 'bg-(--ui-border-accented)'
+}
+
 async function fetchDistribution() {
   if (!proverb.value) return
   try {
@@ -216,12 +246,11 @@ async function fetchDistribution() {
   }
 }
 
-async function restoreExistingGuess() {
+async function getExistingGuess() {
   if (!proverb.value) return
 
   const userId = currentUserId.value
-  if (!userId) return
-  let previousOptionId: string | null = null
+  if (!userId) return null
 
   let data: { selected_option: string; is_correct: boolean } | null = null
   try {
@@ -230,23 +259,14 @@ async function restoreExistingGuess() {
     )
     data = response.guess
   } catch {
-    return
+    return null
   }
 
-  if (data?.selected_option) {
-    previousOptionId = data.selected_option
-    result.value = data.is_correct ? 'correct' : 'wrong'
-  }
-
-  if (!previousOptionId) return
-
-  selectedOption.value = previousOptionId
-  hasAnswered.value = true
-  await fetchDistribution()
+  return data
 }
 
 async function submitGuess(optionId: string) {
-  if (!proverb.value || hasAnswered.value || answering.value) return
+  if (!proverb.value || hasAnswered.value || answering.value || hydratingAnswers.value) return
 
   const userId = currentUserId.value
   if (!userId) {
@@ -289,19 +309,39 @@ async function submitGuess(optionId: string) {
   }
 }
 
-watch(() => proverb.value?.id, async () => {
-  resetGuessState()
-  if (!proverb.value) return
-  setupShuffledOptions()
-  await restoreExistingGuess()
-})
+async function hydrateAnswers() {
+  const runId = ++answerHydrationRun.value
+  hydratingAnswers.value = true
+  if (!proverb.value) {
+    hydratingAnswers.value = false
+    return
+  }
 
-watch(() => currentUserId.value, async () => {
-  if (!proverb.value) return
   resetGuessState()
-  setupShuffledOptions()
-  await restoreExistingGuess()
-})
+
+  const existingGuess = await getExistingGuess()
+  if (runId !== answerHydrationRun.value) return
+
+  if (existingGuess?.selected_option) {
+    selectedOption.value = existingGuess.selected_option
+    result.value = existingGuess.is_correct ? 'correct' : 'wrong'
+    hasAnswered.value = true
+    await fetchDistribution()
+  } else {
+    setupShuffledOptions()
+  }
+
+  if (runId !== answerHydrationRun.value) return
+  hydratingAnswers.value = false
+}
+
+watch(
+  [() => proverb.value?.id, () => currentUserId.value],
+  async () => {
+    await hydrateAnswers()
+  },
+  { immediate: true }
+)
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeyboardNavigation)
@@ -423,7 +463,10 @@ async function removeProverb() {
         </UCard>
 
         <UCard class="max-w-2xl mx-auto">
-          <div class="space-y-4">
+          <div
+            class="relative space-y-4 transition-all duration-300"
+            :class="hydratingAnswers ? 'blur-[2px] opacity-70 pointer-events-none select-none' : ''"
+          >
             <p class="text-sm font-medium">What does this proverb actually mean?</p>
             <UAlert
               v-if="!isAuthenticated"
@@ -444,10 +487,12 @@ async function removeProverb() {
                 block
                 :class="[
                   'text-left justify-start h-auto py-3',
+                  !hydratingAnswers ? 'stagger-reveal' : '',
                   !isAuthenticated && index >= 2 ? 'blur-[3px]' : ''
                 ]"
+                :style="!hydratingAnswers ? revealStyle(index) : undefined"
                 :loading="answering && selectedOption === option.id"
-                :disabled="answering || !isAuthenticated"
+                :disabled="answering || !isAuthenticated || hydratingAnswers"
                 @click="submitGuess(option.id)"
               >
                 <span class="w-full text-left whitespace-normal break-words leading-snug">
@@ -458,16 +503,14 @@ async function removeProverb() {
 
             <div v-else-if="distribution.length > 0" class="grid gap-3">
               <div
-                v-for="item in distribution"
+                v-for="(item, index) in distribution"
                 :key="item.option_id"
                 class="rounded-lg border p-4"
                 :class="[
-                  item.is_correct
-                    ? 'border-green-500/50 bg-green-500/5'
-                    : item.option_id === selectedOption
-                      ? 'border-red-500/50 bg-red-500/5'
-                      : 'border-default bg-default'
+                  !hydratingAnswers ? 'stagger-reveal' : '',
+                  getDistributionCardClass(item)
                 ]"
+                :style="!hydratingAnswers ? revealStyle(index) : undefined"
               >
                 <div class="flex items-center justify-between mb-1">
                   <div class="flex items-center gap-2">
@@ -504,13 +547,7 @@ async function removeProverb() {
                 <div class="h-2 rounded-full bg-elevated overflow-hidden">
                   <div
                     class="h-full rounded-full transition-all duration-700 ease-out"
-                    :class="[
-                      item.is_correct
-                        ? 'bg-green-500'
-                        : item.option_id === selectedOption
-                          ? 'bg-red-500'
-                          : 'bg-(--ui-border-accented)'
-                    ]"
+                    :class="getDistributionBarClass(item)"
                     :style="{ width: `${item.pick_percentage}%` }"
                   />
                 </div>
@@ -641,3 +678,26 @@ async function removeProverb() {
     </UPageBody>
   </UPage>
 </template>
+
+<style scoped>
+@keyframes staggerReveal {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stagger-reveal {
+  animation: staggerReveal 320ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger-reveal {
+    animation: none;
+  }
+}
+</style>
