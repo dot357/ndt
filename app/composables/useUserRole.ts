@@ -7,6 +7,7 @@ export function useUserRole() {
   const role = useState<Role>('user-role', () => 'user')
   const bannedAt = useState<string | null>('user-banned-at', () => null)
   const loaded = useState<boolean>('user-role-loaded', () => false)
+  const clientHooksRegistered = useState<boolean>('user-role-client-hooks-registered', () => false)
 
   const isAdmin = computed(() => role.value === 'admin')
   const isModerator = computed(() => role.value === 'moderator')
@@ -17,8 +18,20 @@ export function useUserRole() {
     return user.value?.id ?? (user.value as any)?.sub
   }
 
+  async function resolveUserId(): Promise<string | undefined> {
+    const direct = getUserId()
+    if (direct) return direct
+    if (!process.client) return undefined
+
+    const [{ data: sessionData }, { data: userData }] = await Promise.all([
+      client.auth.getSession(),
+      client.auth.getUser()
+    ])
+    return sessionData.session?.user?.id ?? userData.user?.id
+  }
+
   async function fetchRole() {
-    const uid = getUserId()
+    const uid = await resolveUserId()
     if (!uid) {
       role.value = 'user'
       bannedAt.value = null
@@ -26,6 +39,7 @@ export function useUserRole() {
       return
     }
 
+    let didLoad = false
     try {
       // On client, use Supabase directly to avoid SSR cookie/session timing issues on hard refresh.
       if (process.client) {
@@ -44,30 +58,66 @@ export function useUserRole() {
         role.value = response.role || 'user'
         bannedAt.value = response.banned_at || null
       }
+      didLoad = true
     } catch (e) {
       console.warn('[useUserRole] Failed to fetch role:', e)
-      role.value = 'user'
-      bannedAt.value = null
+      const hasUser = Boolean(await resolveUserId())
+      if (!hasUser) {
+        role.value = 'user'
+        bannedAt.value = null
+      }
+      loaded.value = false
+      return
     } finally {
-      loaded.value = true
+      if (didLoad) {
+        loaded.value = true
+      }
     }
   }
 
   // Fetch on init if user is logged in and role not yet loaded
   if (getUserId() && !loaded.value) {
-    fetchRole()
+    void fetchRole()
   }
 
   // Re-fetch when user changes
   watch(() => getUserId(), (newId) => {
     if (newId) {
-      fetchRole()
+      void fetchRole()
     } else {
       role.value = 'user'
       bannedAt.value = null
       loaded.value = false
     }
   })
+
+  if (process.client && !clientHooksRegistered.value) {
+    clientHooksRegistered.value = true
+
+    client.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
+        role.value = 'user'
+        bannedAt.value = null
+        loaded.value = false
+        return
+      }
+
+      if (
+        event === 'INITIAL_SESSION' ||
+        event === 'SIGNED_IN' ||
+        event === 'TOKEN_REFRESHED' ||
+        event === 'USER_UPDATED'
+      ) {
+        void fetchRole()
+      }
+    })
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        void fetchRole()
+      }
+    })
+  }
 
   return {
     role,
