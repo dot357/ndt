@@ -119,6 +119,7 @@ provide('showAuthModal', showAuthModal)
     </UFooter>
 
     <ClientOnly>
+      <AnalyticsConsentBanner />
       <AuthModal v-model="showAuthModal" />
     </ClientOnly>
   </div>

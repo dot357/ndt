@@ -12,6 +12,15 @@ const hasAcceptedLegal = ref(true)
 const wantsMarketingUpdates = ref(false)
 
 const pendingConsentStorageKey = 'ndt:pending_profile_consent'
+const analyticsConsentStorageKey = 'ndt:analytics-consent'
+
+function syncMarketingFromAnalyticsConsent() {
+  if (!import.meta.client) return
+  const consent = localStorage.getItem(analyticsConsentStorageKey)
+  if (consent === 'granted') {
+    wantsMarketingUpdates.value = true
+  }
+}
 
 function persistPendingConsent() {
   if (!import.meta.client) return
@@ -96,6 +105,23 @@ function close() {
     wantsMarketingUpdates.value = false
   }, 300)
 }
+
+function handleAnalyticsConsentChanged(event: Event) {
+  const status = (event as CustomEvent<{ status?: 'granted' | 'denied' }>).detail?.status
+  if (status === 'granted') {
+    wantsMarketingUpdates.value = true
+  }
+}
+
+onMounted(() => {
+  syncMarketingFromAnalyticsConsent()
+  window.addEventListener('ndt:analytics-consent-changed', handleAnalyticsConsentChanged)
+})
+
+onBeforeUnmount(() => {
+  if (!import.meta.client) return
+  window.removeEventListener('ndt:analytics-consent-changed', handleAnalyticsConsentChanged)
+})
 </script>
 
 <template>
