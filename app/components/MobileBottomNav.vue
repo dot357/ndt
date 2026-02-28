@@ -27,6 +27,17 @@ const drawerItems = computed(() => {
     }
   }))
 
+  if (props.isAuthenticated) {
+    items.push({
+      label: 'Submit',
+      to: '/submit',
+      icon: 'i-lucide-plus',
+      onSelect: () => {
+        open.value = false
+      }
+    })
+  }
+
   if (props.isAuthenticated && props.isAdminOrMod) {
     items.push({
       label: 'Manage',
@@ -71,6 +82,11 @@ function handleSignIn() {
           />
 
           <div class="mt-auto border-t border-default pt-4 space-y-2">
+            <div class="mb-3 flex items-center justify-between rounded-lg border border-default px-3 py-2">
+              <span class="text-sm text-muted">Theme</span>
+              <UColorModeButton />
+            </div>
+
             <UButton
               v-if="isAuthenticated"
               to="/profile"
